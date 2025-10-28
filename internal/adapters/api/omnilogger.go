@@ -2,6 +2,8 @@ package api
 
 import (
 	"encoding/json"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -17,10 +19,11 @@ import (
 
 // OmniLoggerController OmniLogger controller
 type OmniLoggerController struct {
-	log       *logger.ContextLogger
-	validate  *validator.Validate
-	logsSvc   logs.IService
-	stsClient sts.ISTSClient
+	log           *logger.ContextLogger
+	validate      *validator.Validate
+	logsSvc       logs.IService
+	stsClient     sts.ISTSClient
+	counterMetric prometheus.Counter
 }
 
 // NewOmniLoggerController Constructor
@@ -30,6 +33,10 @@ func NewOmniLoggerController(server *HTTPServer, validator *validator.Validate, 
 		validate:  validator,
 		logsSvc:   ss,
 		stsClient: sts,
+		counterMetric: promauto.NewCounter(prometheus.CounterOpts{
+			Name: "omni_logger_reqs_total",
+			Help: "The total number of requests to omni logger endpoints",
+		}),
 	}
 
 	// Endpoints if we add JWTVerifyMiddleWare, we add the secure
@@ -44,9 +51,11 @@ func NewOmniLoggerController(server *HTTPServer, validator *validator.Validate, 
 
 func (sc *OmniLoggerController) handleGetLog(w http.ResponseWriter, r *http.Request) {
 	// Increment metric
+	sc.counterMetric.Inc()
 
 	id := chi.URLParam(r, "id")
-
+	// Increment metric
+	sc.counterMetric.Inc()
 	idRes, err := sc.logsSvc.GetByID(r.Context(), &id)
 	if err != nil {
 		RenderError(r.Context(), w, err)
@@ -58,6 +67,7 @@ func (sc *OmniLoggerController) handleGetLog(w http.ResponseWriter, r *http.Requ
 
 func (sc *OmniLoggerController) handleCreate(w http.ResponseWriter, r *http.Request) {
 	// Increment metric
+	sc.counterMetric.Inc()
 
 	sc.log.Log(logrus.InfoLevel, "handleCreate", "start endpoint")
 
@@ -77,7 +87,8 @@ func (sc *OmniLoggerController) handleCreate(w http.ResponseWriter, r *http.Requ
 		RenderError(r.Context(), w, terr)
 		return
 	}
-
+	// Increment metric
+	sc.counterMetric.Inc()
 	// Call the service
 	res, err := sc.logsSvc.Create(r.Context(), &payload)
 	if err != nil {

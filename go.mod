@@ -20,7 +20,10 @@ require (
 	go.elastic.co/apm/module/apmsql/v2 v2.6.2
 )
 
-require github.com/getsentry/sentry-go v0.32.0 // indirect
+require (
+	github.com/getsentry/sentry-go v0.32.0 // indirect
+	github.com/kylelemons/godebug v1.1.0 // indirect
+)
 
 require (
 	github.com/armon/go-radix v1.0.0 // indirect
