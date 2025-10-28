@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"net/http"
 	"strconv"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/jmontesinos91/omnilogger/internal/services/log_message"
 	"github.com/jmontesinos91/osecurity/sts"
 	"github.com/jmontesinos91/terrors"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 )
 
@@ -22,6 +24,7 @@ type LogMessageController struct {
 	validate      *validator.Validate
 	logMessageSvc log_message.IService
 	stsClient     sts.ISTSClient
+	counterMetric prometheus.Counter
 }
 
 // NewLogMessageController Constructor
@@ -31,6 +34,10 @@ func NewLogMessageController(server *HTTPServer, validator *validator.Validate, 
 		validate:      validator,
 		logMessageSvc: ss,
 		stsClient:     sts,
+		counterMetric: promauto.NewCounter(prometheus.CounterOpts{
+			Name: "log_messages_reqs_total",
+			Help: "The total number of requests to omni logger endpoints",
+		}),
 	}
 
 	// Endpoints if we add JWTVerifyMiddleWare, we add the secure
@@ -57,6 +64,8 @@ func (sc *LogMessageController) handleGet(w http.ResponseWriter, r *http.Request
 }
 
 func (sc *LogMessageController) handleCreate(w http.ResponseWriter, r *http.Request) {
+	// Increment metric
+	sc.counterMetric.Inc()
 	requestID := r.Context().Value(middleware.RequestIDKey).(string)
 
 	var payload log_message.Payload
@@ -73,7 +82,8 @@ func (sc *LogMessageController) handleCreate(w http.ResponseWriter, r *http.Requ
 		RenderError(r.Context(), w, err)
 		return
 	}
-
+	// Increment metric
+	sc.counterMetric.Inc()
 	// Call the service
 	res, err := sc.logMessageSvc.Create(r.Context(), &payload)
 	if err != nil {
@@ -85,7 +95,8 @@ func (sc *LogMessageController) handleCreate(w http.ResponseWriter, r *http.Requ
 }
 
 func (sc *LogMessageController) handleUpdate(w http.ResponseWriter, r *http.Request) {
-
+	// Increment metric
+	sc.counterMetric.Inc()
 	var payload log_message.Payload
 
 	id, _ := strconv.Atoi(chi.URLParam(r, "id"))
@@ -95,7 +106,8 @@ func (sc *LogMessageController) handleUpdate(w http.ResponseWriter, r *http.Requ
 		RenderError(r.Context(), w, terr)
 		return
 	}
-
+	// Increment metric
+	sc.counterMetric.Inc()
 	res, err := sc.logMessageSvc.Update(r.Context(), &id, &payload)
 	if err != nil {
 		RenderError(r.Context(), w, err)
