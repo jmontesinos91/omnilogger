@@ -2,6 +2,7 @@ package logs
 
 import (
 	"context"
+	"github.com/jmontesinos91/oevents/eventfactory"
 
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jmontesinos91/ologs/logger"
@@ -118,4 +119,59 @@ func (s *DefaultService) Retrieve(ctx context.Context, filter Filter) (*Paginate
 		Total: total,
 		Page:  currentPage,
 	}, nil
+}
+
+// CreateLogFromKafka creates a new log from kafka
+func (s *DefaultService) CreateLogFromKafka(ctx context.Context, payload *eventfactory.LogCreatedPayload) error {
+
+	tenantCatJSON, errBind := eventfactory.ToTenantCatJson(payload.TenantCat)
+	if errBind != nil {
+		s.log.Error(
+			logrus.ErrorLevel,
+			"CreateLogFromKafka",
+			"Error marshalling TenantCat to JSON",
+			errBind)
+		return terrors.InternalService("tenant_cat_error", "Error marshalling TenantCat to JSON", nil)
+	}
+
+	model := &Payload{
+		IpAddress:   payload.IpAddress,
+		ClientHost:  payload.ClientHost,
+		Provider:    payload.Provider,
+		Level:       payload.Level,
+		Message:     payload.Message,
+		Description: payload.Description,
+		Resource:    payload.Resource,
+		Path:        payload.Path,
+		Action:      payload.Action,
+		Data:        payload.Data,
+		OldData:     payload.OldData,
+		UserID:      payload.UserID,
+		TenantCat:   tenantCatJSON,
+	}
+
+	// Create model for repository
+	data, err := ToModel(model)
+	if err != nil {
+		s.log.Error(
+			logrus.ErrorLevel,
+			"ToModel",
+			"Failed to map payload data to model",
+			err)
+
+		return terrors.InternalService("metadata_error", "Failed to map payload data to model", nil)
+	}
+
+	err = s.logsRepo.Create(ctx, data)
+	if err != nil {
+		s.log.Error(
+			logrus.ErrorLevel,
+			"CreateLogFromKafka",
+			"Failed to create log from kafka",
+			err)
+
+		return terrors.InternalService("metadata_error", "Error storing model for log", nil)
+	}
+
+	return nil
 }

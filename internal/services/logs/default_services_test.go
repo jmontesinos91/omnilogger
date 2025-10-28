@@ -2,6 +2,7 @@ package logs
 
 import (
 	"context"
+	"github.com/jmontesinos91/oevents/eventfactory"
 	"github.com/jmontesinos91/omnilogger/domains/pagination"
 	"github.com/jmontesinos91/omnilogger/internal/repositories/logs"
 	"testing"
@@ -399,6 +400,132 @@ func TestRetrieve(t *testing.T) {
 			}
 
 			if !tc.asserts(t, assertsParams) {
+				t.Errorf("Assert error on test case: %s", tc.name)
+			}
+		})
+	}
+}
+
+func TestCreateLogFromKafka(t *testing.T) {
+
+	ctx := context.Background()
+	ctxLogger := logger.NewContextLogger("TestCreateLogFromKafka", "debug", logger.TextFormat)
+
+	type repositoryOpts struct {
+		logsRepo     *logsmock.IRepository
+		logsRepoFunc func() *logsmock.IRepository
+	}
+
+	type args struct {
+		ctx     context.Context
+		payload *eventfactory.LogCreatedPayload
+	}
+
+	type assertsParams struct {
+		repositoryOpts
+		args
+		err error
+	}
+
+	cases := []struct {
+		name           string
+		repositoryOpts repositoryOpts
+		args           args
+		err            bool
+		asserts        func(*testing.T, error, assertsParams) bool
+	}{
+		{
+			name: "Happy path",
+			repositoryOpts: repositoryOpts{
+				logsRepoFunc: func() *logsmock.IRepository {
+					repoMock := &logsmock.IRepository{}
+					repoMock.On("Create", mock.Anything, mock.Anything).Return(nil)
+					return repoMock
+				},
+			},
+			args: args{
+				ctx: ctx,
+				payload: &eventfactory.LogCreatedPayload{
+					IpAddress:   "192.168.1.1",
+					ClientHost:  "localhost",
+					Provider:    "ExampleProvider",
+					Level:       1,
+					Message:     2,
+					Description: "Test description",
+					Resource:    "resource-path",
+					Path:        "/example",
+					Action:      "CREATE",
+					Data:        `{"key": "value"}`,
+					OldData:     `{"old_key": "old_value"}`,
+					UserID:      "1234",
+					TenantCat: []eventfactory.TenantItem{
+						{ID: 1, Name: "Tenant A"},
+						{ID: 2, Name: "Tenant B"},
+					},
+				},
+			},
+			err: false,
+			asserts: func(t *testing.T, err error, ap assertsParams) bool {
+				return assert.NoError(t, err) &&
+					ap.logsRepo.AssertCalled(t, "Create", mock.Anything, mock.Anything)
+			},
+		},
+		{
+			name: "Error on repository Create",
+			repositoryOpts: repositoryOpts{
+				logsRepoFunc: func() *logsmock.IRepository {
+					repoMock := &logsmock.IRepository{}
+					repoMock.On("Create", mock.Anything, mock.Anything).
+						Return(terrors.InternalService("metadata_error", "Error storing model for log", nil))
+					return repoMock
+				},
+			},
+			args: args{
+				ctx: ctx,
+				payload: &eventfactory.LogCreatedPayload{
+					IpAddress:   "192.168.1.1",
+					ClientHost:  "localhost",
+					Provider:    "ExampleProvider",
+					Level:       1,
+					Message:     2,
+					Description: "Test description",
+					Resource:    "resource-path",
+					Path:        "/example",
+					Action:      "CREATE",
+					Data:        `{"key": "value"}`,
+					OldData:     `{"old_key": "old_value"}`,
+					UserID:      "1234",
+					TenantCat: []eventfactory.TenantItem{
+						{ID: 1, Name: "Tenant A"},
+					},
+				},
+			},
+			err: true,
+			asserts: func(t *testing.T, err error, ap assertsParams) bool {
+				var terr *terrors.Error
+				return assert.ErrorAs(t, err, &terr) &&
+					assert.Equal(t, "Error storing model for log", terr.Message)
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+
+			if tc.repositoryOpts.logsRepoFunc != nil {
+				tc.repositoryOpts.logsRepo = tc.repositoryOpts.logsRepoFunc()
+			}
+
+			service := NewDefaultService(ctxLogger, tc.repositoryOpts.logsRepo)
+			err := service.CreateLogFromKafka(tc.args.ctx, tc.args.payload)
+
+			assertsParams := assertsParams{
+				repositoryOpts: tc.repositoryOpts,
+				args:           tc.args,
+				err:            err,
+			}
+
+			if !tc.asserts(t, err, assertsParams) {
 				t.Errorf("Assert error on test case: %s", tc.name)
 			}
 		})

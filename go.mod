@@ -6,6 +6,7 @@ require (
 	github.com/go-chi/chi/v5 v5.1.0
 	github.com/go-playground/validator/v10 v10.23.0
 	github.com/jackc/pgx/v4 v4.18.3
+	github.com/jmontesinos91/oevents v1.4.3
 	github.com/jmontesinos91/ologs v1.2.4
 	github.com/jmontesinos91/osecurity v1.8.2
 	github.com/jmontesinos91/terrors v1.1.3
@@ -24,6 +25,9 @@ require (
 require (
 	github.com/getsentry/sentry-go v0.32.0 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
+	github.com/pierrec/lz4/v4 v4.1.22 // indirect
+	github.com/twmb/franz-go v1.18.1 // indirect
+	github.com/twmb/franz-go/pkg/kmsg v1.9.0 // indirect
 )
 
 require (
