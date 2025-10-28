@@ -3,13 +3,12 @@ package logs
 import (
 	"context"
 
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jmontesinos91/ologs/logger"
 	tracekey "github.com/jmontesinos91/ologs/logger/v2"
-
 	"github.com/jmontesinos91/omnilogger/internal/repositories/logs"
 	"github.com/jmontesinos91/terrors"
-
-	"github.com/go-chi/chi/v5/middleware"
+	lop "github.com/samber/lo/parallel"
 	"github.com/sirupsen/logrus"
 )
 
@@ -83,4 +82,40 @@ func (s *DefaultService) Create(ctx context.Context, payload *Payload) (*Respons
 	}
 
 	return ToResponse(model), nil
+}
+
+// Retrieve logs with filter
+func (s *DefaultService) Retrieve(ctx context.Context, filter Filter) (*PaginatedRes, error) {
+	requestID := ctx.Value(middleware.RequestIDKey).(string)
+
+	repoFilter := ToRepoFilter(filter)
+
+	res, total, err := s.logsRepo.Retrieve(ctx, repoFilter)
+	if err != nil {
+		s.log.WithContext(
+			logrus.ErrorLevel,
+			"Retrieve",
+			"Error while retrieve logs: %v",
+			logger.Context{
+				tracekey.TrackingID: requestID,
+			},
+			err)
+		return nil, terrors.New(terrors.ErrInternalService, "Internal error service", map[string]string{})
+	}
+
+	items := lop.Map(res, func(p logs.Model, _ int) Response {
+		return *ToResponse(&p)
+	})
+
+	currentPage := filter.Page
+	if currentPage == 0 {
+		currentPage = 1
+	}
+
+	return &PaginatedRes{
+		Data:  items,
+		Size:  filter.Size,
+		Total: total,
+		Page:  currentPage,
+	}, nil
 }

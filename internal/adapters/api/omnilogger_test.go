@@ -21,19 +21,23 @@ import (
 
 func TestOmniLoggerController_TableDriven(t *testing.T) {
 	ctxLogger := logger.NewContextLogger("TestControllerOmniLogger", "debug", logger.TextFormat)
+
 	type tc struct {
-		name            string
-		handler         string // "create", "get"
-		method          string
-		path            string
-		body            string
-		reqID           string
-		chiParams       map[string]string
-		mockSvc         *logssvcmock.IService
-		expectedCode    int
-		expectedNot     []int
-		expectedCounter float64
-		expectedRespID  int // empty -> don't check
+		name                 string
+		handler              string // "create", "get", "retrieve"
+		method               string
+		path                 string
+		query                string // include leading "?" when non-empty (used for retrieve)
+		body                 string
+		reqID                string
+		chiParams            map[string]string
+		mockSvc              *logssvcmock.IService
+		expectedCode         int
+		expectedNot          []int
+		expectedCounter      float64
+		expectedRespID       int    // for single resource responses
+		expectRetrieveCalled bool   // for retrieve handler
+		expectDataID         string // for retrieve success, expected first Data[0].ID
 	}
 
 	tests := []tc{
@@ -82,6 +86,47 @@ func TestOmniLoggerController_TableDriven(t *testing.T) {
 			expectedNot:     []int{http.StatusCreated},
 			expectedCounter: 1,
 		},
+		{
+			name:    "Retrieve_Success",
+			handler: "retrieve",
+			method:  http.MethodGet,
+			path:    "/v1/logs",
+			query:   "?page=1&per_page=10&max=10",
+			mockSvc: &logssvcmock.IService{
+				RetrieveRes: &logs.PaginatedRes{
+					Data: []logs.Response{
+						{ID: "42", Message: 1},
+					},
+					Total: 1,
+				},
+			},
+			expectRetrieveCalled: true,
+			expectedCounter:      1,
+			expectDataID:         "42",
+		},
+		{
+			name:    "Retrieve_ServiceError",
+			handler: "retrieve",
+			method:  http.MethodGet,
+			path:    "/v1/logs",
+			query:   "?page=1&max=10",
+			mockSvc: &logssvcmock.IService{
+				RetrieveErr: errors.New("svc fail"),
+			},
+			expectRetrieveCalled: true,
+			expectedCounter:      1,
+		},
+		{
+			name:    "Retrieve_InvalidTenantIDParam",
+			handler: "retrieve",
+			method:  http.MethodGet,
+			path:    "/v1/logs",
+			query:   "?page=1&max=10&tenant_id[]=abc",
+			mockSvc: &logssvcmock.IService{},
+			// invalid param -> parse fail -> service should not be called
+			expectRetrieveCalled: false,
+			expectedCounter:      1,
+		},
 	}
 
 	for _, tt := range tests {
@@ -92,24 +137,26 @@ func TestOmniLoggerController_TableDriven(t *testing.T) {
 			}
 
 			counter := prometheus.NewCounter(prometheus.CounterOpts{
-				Name: "test_omnilogger_counter_" + strings.ReplaceAll(tt.name, " ", "_"),
+				Name: "test_omnilogger_" + strings.ReplaceAll(tt.name, " ", "_"),
 				Help: "test counter",
 			})
 
-			// Inicializar ContextLogger con un *logrus.Logger para evitar nil pointer deref.
 			sc := &OmniLoggerController{
 				log:           ctxLogger,
 				validate:      validator.New(),
 				logsSvc:       tt.mockSvc,
-				stsClient:     nil,
 				counterMetric: counter,
 			}
 
 			var req *http.Request
-			if tt.body != "" {
-				req = httptest.NewRequest(tt.method, tt.path, strings.NewReader(tt.body))
+			if tt.handler == "retrieve" {
+				req = httptest.NewRequest(tt.method, tt.path+tt.query, nil)
 			} else {
-				req = httptest.NewRequest(tt.method, tt.path, nil)
+				if tt.body != "" {
+					req = httptest.NewRequest(tt.method, tt.path, strings.NewReader(tt.body))
+				} else {
+					req = httptest.NewRequest(tt.method, tt.path, nil)
+				}
 			}
 
 			if tt.reqID != "" {
@@ -126,45 +173,76 @@ func TestOmniLoggerController_TableDriven(t *testing.T) {
 				sc.handleCreate(rr, req)
 			case "get":
 				sc.handleGetLog(rr, req)
+			case "retrieve":
+				sc.handleRetrieve(rr, req)
 			default:
 				t.Fatalf("unknown handler %s", tt.handler)
 			}
 
+			// expected status handling
 			if tt.expectedCode != 0 {
 				if rr.Code != tt.expectedCode {
-					t.Fatalf("esperado status %d, obtenido %d, body: %s", tt.expectedCode, rr.Code, rr.Body.String())
+					t.Fatalf("expected status %d, got %d, body: %s", tt.expectedCode, rr.Code, rr.Body.String())
 				}
 			}
-
 			if len(tt.expectedNot) > 0 {
 				for _, code := range tt.expectedNot {
 					if rr.Code == code {
-						t.Fatalf("no se esperaba status %d para el caso %s, body: %s", rr.Code, tt.name, rr.Body.String())
+						t.Fatalf("did not expect status %d for case %s, body: %s", rr.Code, tt.name, rr.Body.String())
 					}
 				}
 			}
 
-			if got := testutil.ToFloat64(counter); got != tt.expectedCounter {
-				t.Fatalf("counter esperado %v, obtenido %v", tt.expectedCounter, got)
+			// retrieve call expectations (only meaningful for retrieve cases)
+			if tt.handler == "retrieve" {
+				if tt.expectRetrieveCalled {
+					if !tt.mockSvc.RetrieveCalled {
+						t.Fatalf("expected Retrieve to be called on the mock service")
+					}
+				} else {
+					if tt.mockSvc.RetrieveCalled {
+						t.Fatalf("did not expect Retrieve to be called on the mock service")
+					}
+				}
 			}
 
-			if tt.expectedRespID > 0 {
+			// invalid JSON create should not call Create
+			if tt.handler == "create" && tt.body == "{{invalid-json" {
+				if tt.mockSvc.CreateCalled {
+					t.Fatalf("did not expect Create to be called with malformed payload")
+				}
+			}
+
+			// counter assertion
+			if got := testutil.ToFloat64(counter); got != tt.expectedCounter {
+				t.Fatalf("expected counter %v, got %v", tt.expectedCounter, got)
+			}
+
+			// response body assertions
+			if tt.expectedRespID > 0 && rr.Code == http.StatusOK {
 				var resp logs.Response
 				if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
-					t.Fatalf("respuesta JSON no válida: %v", err)
+					t.Fatalf("invalid JSON response: %v", err)
 				}
 				responseID, err := strconv.Atoi(resp.ID)
 				if err != nil {
 					t.Fatalf("wrong id: %v", err)
 				}
 				if responseID != tt.expectedRespID {
-					t.Fatalf("esperado ID %d, obtenido %d", tt.expectedRespID, responseID)
+					t.Fatalf("expected ID %d, got %d", tt.expectedRespID, responseID)
 				}
 			}
 
-			if tt.handler == "create" && tt.body == "{{invalid-json" {
-				if tt.mockSvc.CreateCalled {
-					t.Fatalf("no se esperaba llamada a Create con payload malformado")
+			if tt.expectDataID != "" && rr.Code == http.StatusOK {
+				var resp logs.PaginatedRes
+				if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+					t.Fatalf("invalid JSON response: %v", err)
+				}
+				if len(resp.Data) == 0 {
+					t.Fatalf("expected at least one item in paginated response")
+				}
+				if resp.Data[0].ID != tt.expectDataID {
+					t.Fatalf("expected ID %s, got %s", tt.expectDataID, resp.Data[0].ID)
 				}
 			}
 		})
