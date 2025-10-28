@@ -44,6 +44,7 @@ func NewOmniLoggerController(server *HTTPServer, validator *validator.Validate, 
 		r.Use(JwtVerifyMiddleware(server.Logger, sts))
 		r.Get("/v1/logs/{id}", sc.handleGetLog)
 		r.Post("/v1/logs", sc.handleCreate)
+		r.Get("/v1/logs", sc.handleRetrieve)
 	})
 
 	return sc
@@ -93,4 +94,24 @@ func (sc *OmniLoggerController) handleCreate(w http.ResponseWriter, r *http.Requ
 	}
 
 	RenderJSON(r.Context(), w, http.StatusCreated, res)
+}
+
+func (sc *OmniLoggerController) handleRetrieve(w http.ResponseWriter, r *http.Request) {
+	// Increment metric
+	sc.counterMetric.Inc()
+
+	filter, err := logs.ToParseFilterRequest(r)
+	if err != nil {
+		sc.log.Error(logrus.ErrorLevel, "handleRetrieve", "Invalid request parameters", err)
+		RenderError(r.Context(), w, err)
+		return
+	}
+
+	res, err := sc.logsSvc.Retrieve(r.Context(), filter)
+	if err != nil {
+		RenderError(r.Context(), w, err)
+		return
+	}
+
+	RenderJSON(r.Context(), w, http.StatusOK, res)
 }

@@ -21,6 +21,26 @@ type Model struct {
 	Resource    string     `bun:"resource"`
 	Action      string     `bun:"action"`
 	Data        string     `bun:"data"`
+	OldData     string     `bun:"old_data"`
+	TenantCat   string     `bun:"tenant_cat"`
+	TenantID    string     `bun:"tenant_id"`
 	UserID      string     `bun:"user_id"`
+	Target      string     `bun:"target"`
 	CreatedAt   *time.Time `bun:"created_at"`
+}
+
+type Filter struct {
+	Message  []int
+	Level    []string
+	Provider []string
+	Action   []string
+	Path     string
+	Resource string
+	TenantID []int
+	UserID   []string
+	Target   []string
+	StartAt  time.Time
+	EndAt    time.Time
+	From     int
+	Size     int
 }

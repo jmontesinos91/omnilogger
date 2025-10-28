@@ -2,8 +2,10 @@ package logs
 
 import (
 	"context"
+	"github.com/jmontesinos91/omnilogger/domains/pagination"
 	"github.com/jmontesinos91/omnilogger/internal/repositories/logs"
 	"testing"
+	"time"
 
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jmontesinos91/ologs/logger"
@@ -224,6 +226,170 @@ func TestGetByID(t *testing.T) {
 
 			service := NewDefaultService(ctxLogger, tc.repositoryOpts.logsRepo)
 			result, err := service.GetByID(tc.args.ctx, tc.args.ID)
+
+			assertsParams := assertsParams{
+				repositoryOpts: tc.repositoryOpts,
+				args:           tc.args,
+				result:         result,
+				err:            err,
+			}
+
+			if !tc.asserts(t, assertsParams) {
+				t.Errorf("Assert error on test case: %s", tc.name)
+			}
+		})
+	}
+}
+
+func TestRetrieve(t *testing.T) {
+
+	ctxLogger := logger.NewContextLogger("TestRetrieve", "debug", logger.TextFormat)
+	ctx := context.WithValue(context.Background(), middleware.RequestIDKey, "test-request-id")
+
+	type repositoryOpts struct {
+		logsRepo     *logsmock.IRepository
+		logsRepoFunc func() *logsmock.IRepository
+	}
+
+	type args struct {
+		ctx    context.Context
+		filter Filter
+	}
+
+	type assertsParams struct {
+		repositoryOpts
+		args
+		result *PaginatedRes
+		err    error
+	}
+
+	cases := []struct {
+		name           string
+		repositoryOpts repositoryOpts
+		args           args
+		err            bool
+		asserts        func(*testing.T, assertsParams) bool
+	}{
+		{
+			name: "Happy path",
+			repositoryOpts: repositoryOpts{
+				logsRepoFunc: func() *logsmock.IRepository {
+					repoMock := &logsmock.IRepository{}
+					repoMock.On("Retrieve", mock.Anything, mock.Anything).
+						Return([]logs.Model{
+							{
+								ID:          "12345",
+								IpAddress:   "192.168.1.1",
+								ClientHost:  "localhost",
+								Provider:    "ExampleProvider",
+								Level:       1,
+								Message:     2,
+								Description: "Test description",
+								Path:        "/example",
+								Resource:    "resource-path",
+								Action:      "RETRIEVE",
+							},
+						}, 1, nil)
+					return repoMock
+				},
+			},
+			args: args{
+				ctx: ctx,
+				filter: Filter{
+					Level:    []string{"INFO", "ERROR"},
+					Message:  []int{2, 4},
+					Provider: []string{"ExampleProvider"},
+					Action:   []string{"CREATE", "RETRIEVE"},
+					Path:     "/example",
+					Resource: "resource-path",
+					TenantID: []int{1, 2},
+					UserID:   []string{"1234", "5678"},
+					StartAt:  time.Now().Add(-24 * time.Hour),
+					EndAt:    time.Now(),
+					Filter: pagination.Filter{
+						Page:     1,
+						Size:     10,
+						Offset:   0,
+						SortBy:   "created_at",
+						SortDesc: true,
+					},
+				},
+			},
+			err: false,
+			asserts: func(t *testing.T, ap assertsParams) bool {
+				return assert.NoError(t, ap.err) &&
+					assert.NotNil(t, ap.result) &&
+					assert.Len(t, ap.result.Data, 1) &&
+					assert.Equal(t, 1, ap.result.Total) &&
+					ap.logsRepo.AssertCalled(t, "Retrieve", mock.Anything, mock.Anything)
+			},
+		},
+		{
+			name: "Error retrieving logs",
+			repositoryOpts: repositoryOpts{
+				logsRepoFunc: func() *logsmock.IRepository {
+					repoMock := &logsmock.IRepository{}
+					repoMock.On("Retrieve", mock.Anything, mock.Anything).
+						Return(nil, 0, terrors.New(terrors.ErrInternalService, "Error retrieving logs", nil))
+					return repoMock
+				},
+			},
+			args: args{
+				ctx: ctx,
+				filter: Filter{
+					Level:    []string{"ERROR"},
+					Provider: []string{"ExampleProvider"},
+					Filter: pagination.Filter{
+						Page: 1,
+						Size: 10,
+					},
+				},
+			},
+			err: true,
+			asserts: func(t *testing.T, ap assertsParams) bool {
+				var terr *terrors.Error
+				return assert.ErrorAs(t, ap.err, &terr) &&
+					assert.Nil(t, ap.result) &&
+					assert.Contains(t, terr.Message, "Internal error service") &&
+					ap.logsRepo.AssertCalled(t, "Retrieve", mock.Anything, mock.Anything)
+			},
+		},
+		{
+			name: "Empty filter",
+			repositoryOpts: repositoryOpts{
+				logsRepoFunc: func() *logsmock.IRepository {
+					repoMock := &logsmock.IRepository{}
+					repoMock.On("Retrieve", mock.Anything, mock.Anything).
+						Return([]logs.Model{}, 0, nil)
+					return repoMock
+				},
+			},
+			args: args{
+				ctx: ctx,
+				filter: Filter{
+					Filter: pagination.Filter{},
+				},
+			},
+			err: false,
+			asserts: func(t *testing.T, ap assertsParams) bool {
+				return assert.NoError(t, ap.err) &&
+					assert.NotNil(t, ap.result) &&
+					assert.Len(t, ap.result.Data, 0) &&
+					assert.Equal(t, 0, ap.result.Total) &&
+					assert.Equal(t, 1, ap.result.Page) &&
+					ap.logsRepo.AssertCalled(t, "Retrieve", mock.Anything, mock.Anything)
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.repositoryOpts.logsRepoFunc != nil {
+				tc.repositoryOpts.logsRepo = tc.repositoryOpts.logsRepoFunc()
+			}
+
+			service := NewDefaultService(ctxLogger, tc.repositoryOpts.logsRepo)
+			result, err := service.Retrieve(tc.args.ctx, tc.args.filter)
 
 			assertsParams := assertsParams{
 				repositoryOpts: tc.repositoryOpts,
