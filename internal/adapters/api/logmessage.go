@@ -82,8 +82,7 @@ func (sc *LogMessageController) handleCreate(w http.ResponseWriter, r *http.Requ
 		RenderError(r.Context(), w, err)
 		return
 	}
-	// Increment metric
-	sc.counterMetric.Inc()
+
 	// Call the service
 	res, err := sc.logMessageSvc.Create(r.Context(), &payload)
 	if err != nil {
@@ -106,8 +105,7 @@ func (sc *LogMessageController) handleUpdate(w http.ResponseWriter, r *http.Requ
 		RenderError(r.Context(), w, terr)
 		return
 	}
-	// Increment metric
-	sc.counterMetric.Inc()
+
 	res, err := sc.logMessageSvc.Update(r.Context(), &id, &payload)
 	if err != nil {
 		RenderError(r.Context(), w, err)

@@ -54,8 +54,6 @@ func (sc *OmniLoggerController) handleGetLog(w http.ResponseWriter, r *http.Requ
 	sc.counterMetric.Inc()
 
 	id := chi.URLParam(r, "id")
-	// Increment metric
-	sc.counterMetric.Inc()
 	idRes, err := sc.logsSvc.GetByID(r.Context(), &id)
 	if err != nil {
 		RenderError(r.Context(), w, err)
@@ -87,8 +85,6 @@ func (sc *OmniLoggerController) handleCreate(w http.ResponseWriter, r *http.Requ
 		RenderError(r.Context(), w, terr)
 		return
 	}
-	// Increment metric
-	sc.counterMetric.Inc()
 	// Call the service
 	res, err := sc.logsSvc.Create(r.Context(), &payload)
 	if err != nil {
