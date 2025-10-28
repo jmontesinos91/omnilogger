@@ -1,0 +1,32 @@
+server:
+  port: 8081
+
+keys:
+  public: "LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQ0lUQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FnNEFNSUlDQ1FLQ0FnQjdHV0IxOFhydWd5cWErQW1HMng4RCBnRXJJUnJxYWpvcG5kQ1diM0V4OGo5TjRpTFJwSFFVN1hPMEdWQzA4YlZZV2R2WE9qNHpzMWhodGRXNGRRQllWIG5CYTNWSEVNUGNQakx4V2dEWDRKWFpiYk52MjAxSXdJSHJKaGZheUM0cUE1dWI1ZHV3NCthaStvWmpKR1B1NjIgUGZGV3RwbmFCdUtCRnRHUG5pdjRXTXR6b0JRNUhBS29RQzJmL0tYTFNidllpeG9FT2liTWFQSXJyUW1lUXJ5WCAzZUs4MFJIVFRqU0pmN21qSHZRU2ZuNTBCNVVLem1kR2pZMnRwcmV1SU9oNlJXdzF4Z3QvMm0xaDArSURadlBEIDZRaEgrYnJyY1ZObFpHcjlzOGNNSkhQOGpod2ZvTGFYbEVvbHp6T2k1bWIxU0RvZ3Y0TWgrVm1OU3dpVTRLYlEgZ3lEY1NaSEJDT2E2bGsyM3VhcGFQTmovWFBtVTNNR1Y5LzZ4WlVRUWpvbS80cUdvRytwWnlNT0gxUVgzblk1UyBPRTV4cmdoS0RjbW4wMVZsajBUN0ljRStMaHZaZi9Bdko2TlJOa2FsU25WUUtJRHhJL1NzQVE2cFZvVW5jY2pSIEJvdUY1U2lIb2VVZ1QyMFRhVjJoM0o2aCt6aDBWVEhodEZ2Uk80OXdpeWJXMTRkV0h3LzE5T0F1S0s4TlhZTnQgSVdoTy9UVUNCaHo3WGxTeVVuY0I2OFpkV3hhN216ak92U0k3MWpvK1VnMGMzMnB2dm9TYTlEaG9HdGt6Nm9SQyBkcWFDMVA5NEViaDFKbS9iWGtnYm5lMVNFN3dqUUdnV2xOVFh2S1Z2eHRIeUsxS2V3VE9HbFBpZlloN3EvcFhWIGMyc1lMYVNMTWtoM0NqVTVEUS9NcFFJREFRQUIKLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0t"
+
+database:
+  dsn: "postgres://postgres:omnilogger@122.8.186.132:5432/omnilogger"
+  pool: 2
+
+service:
+  name: omnilogger
+
+kafka:
+  secured-mode: false
+  servers: "kafka:9092"
+  user: ""
+  pass: ""
+  client-name: "logs"
+  consumer:
+    enabled: true
+    group: "logs"
+    topics:
+      - "omniview.logs.all"
+    max-records: 10
+
+omniview:
+  server: "https://testing.api.omnicloud.ai"
+  timeout-in-seconds: 60
+  max-retries: 3
+  retry-wait-min-in-seconds: 2
+  retry-wait-max-in-seconds: 90

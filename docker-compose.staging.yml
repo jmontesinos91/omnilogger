@@ -1,0 +1,43 @@
+name: ${SERVICE_NAME}-${ENV}
+services:
+  db:
+    image: postgres:15.4-alpine3.18
+    ports:
+      - "${DB_PORT}:5432"
+    volumes:
+      - postgres_db:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: ${DB_DATABASE}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    networks:
+      - omnilogger_net
+
+  migrations:
+    image: flyway/flyway:9-alpine
+    depends_on:
+      - db
+    volumes:
+      - ./resources/db/migrations:/flyway/sql
+    command: ["-url=jdbc:postgresql://db:5432/${DB_DATABASE}", "-user=postgres", "-password=${DB_PASSWORD}", "migrate"]
+    networks:
+      - omnilogger_net
+
+  app:
+    image: $DOCKER_IMAGE_REGISTRY:$CI_COMMIT_BRANCH-1.0.0
+    environment:
+      DATABASE_DSN: ${DATABASE_DSN}
+      OMNIVIEW_SERVER: ${OMNIVIEW_SERVER}
+      KAFKA_SERVERS: ${KAFKA_SERVERS}
+    ports:
+      - "${APP_PORT}:8081"
+    depends_on:
+      - db
+      - migrations
+    networks:
+      - omnilogger_net
+
+volumes:
+  postgres_db:
+
+networks:
+  omnilogger_net:

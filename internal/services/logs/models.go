@@ -1,0 +1,37 @@
+package logs
+
+import (
+	"time"
+)
+
+// Payload payload example
+type Payload struct {
+	IpAddress   string `json:"ip_address" validate:"required"`
+	ClientHost  string `json:"client_host" validate:"required"`
+	Provider    string `json:"provider" validate:"required"`
+	Level       int    `json:"level" validate:"required"`
+	Message     int    `json:"message" validate:"required"`
+	Description string `json:"description"`
+	Path        string `json:"path" validate:"required"`
+	Resource    string `json:"resource" validate:"required"`
+	Action      string `json:"action" validate:"required"`
+	Data        string `json:"data" validate:"required"`
+	UserID      string `json:"user_id" validate:"required"`
+}
+
+// Response Holds the response for a created payout
+type Response struct {
+	ID          string     `json:"id"`
+	IpAddress   string     `json:"ipAddress"`
+	ClientHost  string     `json:"clientHost"`
+	Provider    string     `json:"provider"`
+	Level       int        `json:"level"`
+	Message     int        `json:"message"`
+	Description string     `json:"description"`
+	Path        string     `json:"path"`
+	Resource    string     `json:"resource"`
+	Action      string     `json:"action"`
+	Data        string     `json:"data"`
+	UserID      string     `json:"userId"`
+	CreatedAt   *time.Time `json:"createdAt,omitempty"`
+}
