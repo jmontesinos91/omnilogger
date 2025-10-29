@@ -55,7 +55,14 @@ func (sc *OmniLoggerController) handleGetLog(w http.ResponseWriter, r *http.Requ
 	sc.counterMetric.Inc()
 
 	id := chi.URLParam(r, "id")
-	idRes, err := sc.logsSvc.GetByID(r.Context(), &id)
+	filter, err := logs.ToParseFilterRequest(r)
+	if err != nil {
+		sc.log.Error(logrus.ErrorLevel, "handleRetrieve", "Invalid request parameters", err)
+		RenderError(r.Context(), w, err)
+		return
+	}
+
+	idRes, err := sc.logsSvc.GetByID(r.Context(), &id, filter)
 	if err != nil {
 		RenderError(r.Context(), w, err)
 		return

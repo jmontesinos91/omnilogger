@@ -26,22 +26,23 @@ type Payload struct {
 
 // Response Holds the response for a created payout
 type Response struct {
-	ID          string     `json:"id"`
-	IpAddress   string     `json:"ipAddress"`
-	ClientHost  string     `json:"clientHost"`
-	Provider    string     `json:"provider"`
-	Level       int        `json:"level"`
-	Message     int        `json:"message"`
-	Description string     `json:"description"`
-	Path        string     `json:"path"`
-	Resource    string     `json:"resource"`
-	Action      string     `json:"action"`
-	Data        string     `json:"data"`
-	OldData     string     `json:"oldData"`
-	TenantCat   string     `json:"tenantCat"`
-	UserID      string     `json:"userId"`
-	Target      string     `json:"target"`
-	CreatedAt   *time.Time `json:"createdAt,omitempty"`
+	ID          string      `json:"id"`
+	IpAddress   string      `json:"ipAddress"`
+	ClientHost  string      `json:"clientHost"`
+	Provider    string      `json:"provider"`
+	Level       int         `json:"level"`
+	Message     int         `json:"message"`
+	Description string      `json:"description"`
+	Path        string      `json:"path"`
+	Resource    string      `json:"resource"`
+	Action      string      `json:"action"`
+	Data        string      `json:"data"`
+	OldData     string      `json:"oldData"`
+	TenantCat   string      `json:"tenantCat"`
+	UserID      string      `json:"userId"`
+	Target      string      `json:"target"`
+	CreatedAt   *time.Time  `json:"createdAt,omitempty"`
+	LogMessage  interface{} `json:"logMessage"`
 }
 
 type Filter struct {

@@ -28,7 +28,7 @@ func NewDefaultService(l *logger.ContextLogger, s logs.IRepository) *DefaultServ
 }
 
 // GetByID gets a records by ID
-func (s *DefaultService) GetByID(ctx context.Context, ID *string) (*Response, error) {
+func (s *DefaultService) GetByID(ctx context.Context, ID *string, filter Filter) (*Response, error) {
 	requestID := ctx.Value(middleware.RequestIDKey).(string)
 
 	// Create logic of the controller
@@ -36,7 +36,9 @@ func (s *DefaultService) GetByID(ctx context.Context, ID *string) (*Response, er
 		return nil, terrors.New(terrors.ErrBadRequest, "", map[string]string{})
 	}
 
-	model, err := s.logsRepo.FindByID(ctx, ID)
+	repoFilter := ToRepoFilter(filter)
+
+	model, err := s.logsRepo.FindByID(ctx, ID, repoFilter)
 	if err != nil {
 		s.log.WithContext(
 			logrus.ErrorLevel,

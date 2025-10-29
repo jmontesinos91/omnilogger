@@ -58,6 +58,7 @@ func TestOmniLoggerController_TableDriven(t *testing.T) {
 			handler:         "get",
 			method:          http.MethodGet,
 			path:            "/v1/logs/abc",
+			query:           "?page=1&per_page=10&max=10",
 			chiParams:       map[string]string{"id": "3"},
 			mockSvc:         &logssvcmock.IService{},
 			expectedCode:    http.StatusOK,
@@ -117,13 +118,12 @@ func TestOmniLoggerController_TableDriven(t *testing.T) {
 			expectedCounter:      1,
 		},
 		{
-			name:    "Retrieve_InvalidTenantIDParam",
-			handler: "retrieve",
-			method:  http.MethodGet,
-			path:    "/v1/logs",
-			query:   "?page=1&max=10&tenant_id[]=abc",
-			mockSvc: &logssvcmock.IService{},
-			// invalid param -> parse fail -> service should not be called
+			name:                 "Retrieve_InvalidTenantIDParam",
+			handler:              "retrieve",
+			method:               http.MethodGet,
+			path:                 "/v1/logs",
+			query:                "?page=1&max=10&tenant_id[]=abc",
+			mockSvc:              &logssvcmock.IService{},
 			expectRetrieveCalled: false,
 			expectedCounter:      1,
 		},
@@ -149,7 +149,7 @@ func TestOmniLoggerController_TableDriven(t *testing.T) {
 			}
 
 			var req *http.Request
-			if tt.handler == "retrieve" {
+			if tt.handler == "retrieve" || tt.handler == "get" {
 				req = httptest.NewRequest(tt.method, tt.path+tt.query, nil)
 			} else {
 				if tt.body != "" {

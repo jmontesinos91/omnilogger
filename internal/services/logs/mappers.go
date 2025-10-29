@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/jmontesinos91/omnilogger/domains/pagination"
+	"github.com/jmontesinos91/omnilogger/internal/repositories/log_message"
 	"net/http"
 	"strconv"
 	"time"
@@ -47,7 +48,25 @@ func ToModel(payload *Payload) (*logs.Model, error) {
 }
 
 func ToResponse(model *logs.Model) *Response {
+	var LogMessage []*log_message.Model = nil
+	if model.LogMessage != nil {
+		for _, logModel := range model.LogMessage {
+			LogMessage = append(LogMessage, logModel)
+		}
+	}
+
+	var description string
+	if model.Description == "" {
+		if len(LogMessage) > 0 {
+			description = LogMessage[0].Message
+		}
+	} else {
+		description = model.Description
+	}
+
 	data := json.RawMessage(model.Data)
+	oldData := json.RawMessage(model.OldData)
+	tenantCat := json.RawMessage(model.TenantCat)
 
 	return &Response{
 		ID:          model.ID,
@@ -56,13 +75,16 @@ func ToResponse(model *logs.Model) *Response {
 		Provider:    model.Provider,
 		Level:       model.Level,
 		Message:     model.Message,
-		Description: model.Description,
+		Description: description,
 		Path:        model.Path,
 		Resource:    model.Resource,
 		Action:      model.Action,
 		Data:        string(data),
+		OldData:     string(oldData),
+		TenantCat:   string(tenantCat),
 		UserID:      model.UserID,
 		CreatedAt:   model.CreatedAt,
+		LogMessage:  LogMessage,
 	}
 }
 

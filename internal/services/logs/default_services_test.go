@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/jmontesinos91/oevents/eventfactory"
 	"github.com/jmontesinos91/omnilogger/domains/pagination"
+	"github.com/jmontesinos91/omnilogger/internal/repositories/log_message"
 	"github.com/jmontesinos91/omnilogger/internal/repositories/logs"
 	"testing"
 	"time"
@@ -147,8 +148,10 @@ func TestGetByID(t *testing.T) {
 	}
 
 	type args struct {
-		ctx context.Context
-		ID  *string
+		ctx      context.Context
+		ID       *string
+		filter   Filter
+		expected *Response
 	}
 
 	type assertsParams struct {
@@ -182,6 +185,16 @@ func TestGetByID(t *testing.T) {
 							Path:        "/example",
 							Resource:    "resource-path",
 							Action:      "GET",
+							LogMessage: []*log_message.Model{
+								{
+									ID:      2,
+									Message: "Example log message",
+								},
+								{
+									ID:      4,
+									Message: "Another log message",
+								},
+							},
 						}, nil)
 					return repoMock
 				},
@@ -189,11 +202,37 @@ func TestGetByID(t *testing.T) {
 			args: args{
 				ctx: ctx,
 				ID:  stringPtr("12345"),
+				filter: Filter{
+					Message: []int{2, 4},
+				},
+				expected: &Response{
+					ID:          "12345",
+					IpAddress:   "192.168.1.1",
+					ClientHost:  "localhost",
+					Provider:    "ExampleProvider",
+					Level:       1,
+					Message:     2,
+					Description: "Test description",
+					Path:        "/example",
+					Resource:    "resource-path",
+					Action:      "GET",
+					LogMessage: []*log_message.Model{
+						{
+							ID:      2,
+							Message: "Example log message",
+						},
+						{
+							ID:      4,
+							Message: "Another log message",
+						},
+					},
+				},
 			},
 			err: false,
 			asserts: func(t *testing.T, ap assertsParams) bool {
 				return assert.NoError(t, ap.err) &&
 					assert.NotNil(t, ap.result) &&
+					assert.Equal(t, ap.result, ap.args.expected) &&
 					assert.Equal(t, "12345", ap.result.ID) &&
 					ap.logsRepo.AssertCalled(t, "FindByID", mock.Anything, mock.Anything, mock.Anything)
 			},
@@ -213,8 +252,129 @@ func TestGetByID(t *testing.T) {
 			asserts: func(t *testing.T, ap assertsParams) bool {
 				return assert.Error(t, ap.err) &&
 					assert.Nil(t, ap.result) &&
+					assert.Equal(t, ap.result, ap.args.expected) &&
 					assert.Contains(t, ap.err.Error(), terrors.ErrBadRequest) &&
 					ap.logsRepo.AssertNotCalled(t, "FindByID", mock.Anything, mock.Anything, mock.Anything)
+			},
+		},
+		{
+			name: "Happy path with different message filter",
+			repositoryOpts: repositoryOpts{
+				logsRepoFunc: func() *logsmock.IRepository {
+					repoMock := &logsmock.IRepository{}
+					repoMock.On("FindByID", mock.Anything, mock.Anything, mock.Anything).
+						Return(&logs.Model{
+							ID:          "12345",
+							IpAddress:   "192.168.1.1",
+							ClientHost:  "localhost",
+							Provider:    "ExampleProvider",
+							Level:       1,
+							Message:     2,
+							Description: "",
+							Path:        "/example",
+							Resource:    "resource-path",
+							Action:      "GET",
+							LogMessage: []*log_message.Model{
+								{
+									ID:      2,
+									Message: "Example log message",
+								},
+								{
+									ID:      4,
+									Message: "Another log message",
+								},
+							},
+						}, nil)
+					return repoMock
+				},
+			},
+			args: args{
+				ctx: ctx,
+				ID:  stringPtr("12345"),
+				filter: Filter{
+					Message: []int{2, 4},
+				},
+				expected: &Response{
+					ID:          "12345",
+					IpAddress:   "192.168.1.1",
+					ClientHost:  "localhost",
+					Provider:    "ExampleProvider",
+					Level:       1,
+					Message:     2,
+					Description: "Example log message",
+					Path:        "/example",
+					Resource:    "resource-path",
+					Action:      "GET",
+					LogMessage: []*log_message.Model{
+						{
+							ID:      2,
+							Message: "Example log message",
+						},
+						{
+							ID:      4,
+							Message: "Another log message",
+						},
+					},
+				},
+			},
+			err: false,
+			asserts: func(t *testing.T, ap assertsParams) bool {
+				return assert.NoError(t, ap.err) &&
+					assert.NotNil(t, ap.result) &&
+					assert.Equal(t, ap.result, ap.args.expected) &&
+					assert.Equal(t, "12345", ap.result.ID) &&
+					ap.logsRepo.AssertCalled(t, "FindByID", mock.Anything, mock.Anything, mock.Anything)
+			},
+		},
+		{
+			name: "Happy path with empty log message",
+			repositoryOpts: repositoryOpts{
+				logsRepoFunc: func() *logsmock.IRepository {
+					repoMock := &logsmock.IRepository{}
+					repoMock.On("FindByID", mock.Anything, mock.Anything, mock.Anything).
+						Return(&logs.Model{
+							ID:          "12345",
+							IpAddress:   "192.168.1.1",
+							ClientHost:  "localhost",
+							Provider:    "ExampleProvider",
+							Level:       1,
+							Message:     2,
+							Description: "",
+							Path:        "/example",
+							Resource:    "resource-path",
+							Action:      "GET",
+							LogMessage:  []*log_message.Model{},
+						}, nil)
+					return repoMock
+				},
+			},
+			args: args{
+				ctx: ctx,
+				ID:  stringPtr("12345"),
+				filter: Filter{
+					Message: []int{2, 4},
+				},
+				expected: &Response{
+					ID:          "12345",
+					IpAddress:   "192.168.1.1",
+					ClientHost:  "localhost",
+					Provider:    "ExampleProvider",
+					Level:       1,
+					Message:     2,
+					Description: "",
+					Path:        "/example",
+					Resource:    "resource-path",
+					Action:      "GET",
+					LogMessage:  []*log_message.Model(nil),
+				},
+			},
+			err: false,
+			asserts: func(t *testing.T, ap assertsParams) bool {
+				return assert.NoError(t, ap.err) &&
+					assert.NotNil(t, ap.result) &&
+					assert.Equal(t, ap.result, ap.args.expected) &&
+					assert.Equal(t, "12345", ap.result.ID) &&
+					ap.logsRepo.AssertCalled(t, "FindByID", mock.Anything, mock.Anything, mock.Anything)
 			},
 		},
 	}
@@ -226,7 +386,7 @@ func TestGetByID(t *testing.T) {
 			}
 
 			service := NewDefaultService(ctxLogger, tc.repositoryOpts.logsRepo)
-			result, err := service.GetByID(tc.args.ctx, tc.args.ID)
+			result, err := service.GetByID(tc.args.ctx, tc.args.ID, tc.args.filter)
 
 			assertsParams := assertsParams{
 				repositoryOpts: tc.repositoryOpts,
