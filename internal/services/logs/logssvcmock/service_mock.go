@@ -28,7 +28,7 @@ type IService struct {
 	CreateLogFromKafkaPayload *eventfactory.LogCreatedPayload
 }
 
-func (m *IService) GetByID(ctx context.Context, id *string) (*logs.Response, error) {
+func (m *IService) GetByID(ctx context.Context, id *string, filter logs.Filter) (*logs.Response, error) {
 	m.GetByIDCalled = true
 	if m.GetByIDErr != nil {
 		return nil, m.GetByIDErr

@@ -33,8 +33,8 @@ func (_m *IRepository) Create(ctx context.Context, model *logs.Model) error {
 }
 
 // FindByID provides a mock function with given fields: ctx, ID, filter
-func (_m *IRepository) FindByID(ctx context.Context, ID *string) (*logs.Model, error) {
-	ret := _m.Called(ctx, ID)
+func (_m *IRepository) FindByID(ctx context.Context, ID *string, filter logs.Filter) (*logs.Model, error) {
+	ret := _m.Called(ctx, ID, filter)
 
 	if len(ret) == 0 {
 		panic("no return value specified for FindByID")
@@ -42,15 +42,21 @@ func (_m *IRepository) FindByID(ctx context.Context, ID *string) (*logs.Model, e
 
 	var r0 *logs.Model
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *string) (*logs.Model, error)); ok {
-		return rf(ctx, ID)
+	if rf, ok := ret.Get(0).(func(context.Context, *string, logs.Filter) (*logs.Model, error)); ok {
+		return rf(ctx, ID, filter)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *string) *logs.Model); ok {
-		r0 = rf(ctx, ID)
+	if rf, ok := ret.Get(0).(func(context.Context, *string, logs.Filter) *logs.Model); ok {
+		r0 = rf(ctx, ID, filter)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*logs.Model)
 		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *string, logs.Filter) error); ok {
+		r1 = rf(ctx, ID, filter)
+	} else {
+		r1 = ret.Error(1)
 	}
 
 	return r0, r1

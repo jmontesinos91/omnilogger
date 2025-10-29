@@ -1,13 +1,14 @@
 package logs
 
 import (
-	"github.com/jmontesinos91/omnilogger/domains/pagination"
-	"github.com/jmontesinos91/omnilogger/internal/repositories/logs"
 	"net/http"
 	"net/url"
 	"testing"
 	"time"
 
+	"github.com/jmontesinos91/omnilogger/domains/pagination"
+	"github.com/jmontesinos91/omnilogger/internal/repositories/log_message"
+	"github.com/jmontesinos91/omnilogger/internal/repositories/logs"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -126,7 +127,7 @@ func TestToResponse(t *testing.T) {
 		expected expected
 	}{
 		{
-			name: "Happy Path with english logMessage",
+			name: "Happy Path",
 			args: args{
 				model: &logs.Model{
 					ID:          "123e4567-e89b-12d3-a456-426614174000",
@@ -142,6 +143,11 @@ func TestToResponse(t *testing.T) {
 					Data:        "{\"key\":\"value\"}",
 					UserID:      "user@example.com",
 					CreatedAt:   &time.Time{},
+					LogMessage: []*log_message.Model{
+						{
+							ID:      100,
+							Message: "Example log message"},
+					},
 				},
 			},
 			expected: expected{
@@ -159,6 +165,60 @@ func TestToResponse(t *testing.T) {
 					Data:        "{\"key\":\"value\"}",
 					UserID:      "user@example.com",
 					CreatedAt:   &time.Time{},
+					LogMessage: []*log_message.Model{
+						{
+							ID:      100,
+							Message: "Example log message",
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "Empty Description Field",
+			args: args{
+				model: &logs.Model{
+					ID:          "123e4567-e89b-12d3-a456-426614174000",
+					IpAddress:   "192.168.0.1",
+					ClientHost:  "localhost",
+					Provider:    "TestProvider",
+					Level:       1,
+					Message:     100,
+					Description: "",
+					Path:        "/v1/resource",
+					Resource:    "RESOURCE",
+					Action:      "CREATE",
+					Data:        "{\"key\":\"value\"}",
+					UserID:      "user@example.com",
+					CreatedAt:   &time.Time{},
+					LogMessage: []*log_message.Model{
+						{
+							ID:      100,
+							Message: "Example log message"},
+					},
+				},
+			},
+			expected: expected{
+				response: &Response{
+					ID:          "123e4567-e89b-12d3-a456-426614174000",
+					IpAddress:   "192.168.0.1",
+					ClientHost:  "localhost",
+					Provider:    "TestProvider",
+					Level:       1,
+					Message:     100,
+					Description: "Example log message",
+					Path:        "/v1/resource",
+					Resource:    "RESOURCE",
+					Action:      "CREATE",
+					Data:        "{\"key\":\"value\"}",
+					UserID:      "user@example.com",
+					CreatedAt:   &time.Time{},
+					LogMessage: []*log_message.Model{
+						{
+							ID:      100,
+							Message: "Example log message",
+						},
+					},
 				},
 			},
 		},
@@ -182,6 +242,12 @@ func TestToResponse(t *testing.T) {
 			assert.Equal(t, tc.expected.response.Data, result.Data)
 			assert.Equal(t, tc.expected.response.UserID, result.UserID)
 			assert.Equal(t, tc.expected.response.CreatedAt, result.CreatedAt)
+
+			if tc.expected.response.LogMessage == nil {
+				assert.Nil(t, result.LogMessage)
+			} else {
+				assert.Equal(t, tc.expected.response.LogMessage, result.LogMessage)
+			}
 		})
 	}
 }

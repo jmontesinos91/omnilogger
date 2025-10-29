@@ -25,10 +25,13 @@ func NewDatabaseRepository(l *logger.ContextLogger, conn *bun.DB) *DatabaseRepos
 	}
 }
 
-func (r *DatabaseRepository) FindByID(ctx context.Context, ID *string) (*Model, error) {
+func (r *DatabaseRepository) FindByID(ctx context.Context, ID *string, filter Filter) (*Model, error) {
 	var payout Model
 	query := r.db.NewSelect().
 		Model(&payout).
+		Relation("LogMessage", func(q *bun.SelectQuery) *bun.SelectQuery {
+			return q.Where("model.id in (?)", filter.Message)
+		}).
 		Where("id = ?", ID)
 
 	if err := query.Scan(ctx); err != nil {
@@ -41,7 +44,7 @@ func (r *DatabaseRepository) FindByID(ctx context.Context, ID *string) (*Model, 
 	return &payout, nil
 }
 
-// Create Handles the creation of a new log record on database
+// Create Handles the creation of a new log record on a database
 func (r *DatabaseRepository) Create(ctx context.Context, model *Model) error {
 	_, err := r.db.NewInsert().
 		Model(model).
@@ -59,8 +62,10 @@ func (r *DatabaseRepository) Retrieve(ctx context.Context, filter Filter) ([]Mod
 	userTenantsID := claims.Tenants
 
 	var model []Model
-
 	query := r.db.NewSelect().Model(&model).
+		Relation("LogMessage", func(q *bun.SelectQuery) *bun.SelectQuery {
+			return q.Where("model.id in (?)", filter.Message)
+		}).
 		Order("created_at DESC").
 		Limit(filter.Size).
 		Offset(filter.From - 1)
