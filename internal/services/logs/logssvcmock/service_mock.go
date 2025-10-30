@@ -26,6 +26,11 @@ type IService struct {
 	CreateLogFromKafkaErr     error
 	CreateLogFromKafkaCalled  bool
 	CreateLogFromKafkaPayload *eventfactory.LogCreatedPayload
+
+	// Export
+	ExportErr    error
+	ExportRes    []byte
+	ExportCalled bool
 }
 
 func (m *IService) GetByID(ctx context.Context, id *string, filter logs.Filter) (*logs.Response, error) {
@@ -53,7 +58,6 @@ func (m *IService) Retrieve(ctx context.Context, filter logs.Filter) (*logs.Pagi
 	if m.RetrieveRes != nil {
 		return m.RetrieveRes, nil
 	}
-	// Default empty paginated response (valor cero) para pruebas.
 	return &logs.PaginatedRes{}, nil
 }
 
@@ -61,4 +65,16 @@ func (m *IService) CreateLogFromKafka(ctx context.Context, logCreated *eventfact
 	m.CreateLogFromKafkaCalled = true
 	m.CreateLogFromKafkaPayload = logCreated
 	return m.CreateLogFromKafkaErr
+}
+
+func (m *IService) Export(ctx context.Context, filter logs.Filter) ([]byte, error) {
+	m.ExportCalled = true
+	if m.ExportErr != nil {
+		return nil, m.ExportErr
+	}
+	if m.ExportRes != nil {
+		return m.ExportRes, nil
+	}
+
+	return []byte{}, nil
 }

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -24,10 +25,10 @@ func TestOmniLoggerController_TableDriven(t *testing.T) {
 
 	type tc struct {
 		name                 string
-		handler              string // "create", "get", "retrieve"
+		handler              string // "create", "get", "retrieve", "export"
 		method               string
 		path                 string
-		query                string // include leading "?" when non-empty (used for retrieve)
+		query                string // include leading "?" when non-empty (used for retrieve/export)
 		body                 string
 		reqID                string
 		chiParams            map[string]string
@@ -37,7 +38,9 @@ func TestOmniLoggerController_TableDriven(t *testing.T) {
 		expectedCounter      float64
 		expectedRespID       int    // for single resource responses
 		expectRetrieveCalled bool   // for retrieve handler
+		expectExportCalled   bool   // for export handler
 		expectDataID         string // for retrieve success, expected first Data[0].ID
+		expectedExportBytes  []byte // expected bytes when export succeeds
 	}
 
 	tests := []tc{
@@ -127,6 +130,27 @@ func TestOmniLoggerController_TableDriven(t *testing.T) {
 			expectRetrieveCalled: false,
 			expectedCounter:      1,
 		},
+		{
+			name:                "Export_Success",
+			handler:             "export",
+			method:              http.MethodGet,
+			path:                "/v1/logs/export",
+			query:               "?page=1&per_page=10&max=10",
+			mockSvc:             &logssvcmock.IService{ExportRes: []byte("excel-bytes")},
+			expectExportCalled:  true,
+			expectedCounter:     1,
+			expectedExportBytes: []byte("excel-bytes"),
+		},
+		{
+			name:               "Export_ServiceError",
+			handler:            "export",
+			method:             http.MethodGet,
+			path:               "/v1/logs/export",
+			query:              "?page=1&per_page=10&max=10",
+			mockSvc:            &logssvcmock.IService{ExportErr: errors.New("svc fail")},
+			expectExportCalled: true,
+			expectedCounter:    1,
+		},
 	}
 
 	for _, tt := range tests {
@@ -149,7 +173,7 @@ func TestOmniLoggerController_TableDriven(t *testing.T) {
 			}
 
 			var req *http.Request
-			if tt.handler == "retrieve" || tt.handler == "get" {
+			if tt.handler == "retrieve" || tt.handler == "get" || tt.handler == "export" {
 				req = httptest.NewRequest(tt.method, tt.path+tt.query, nil)
 			} else {
 				if tt.body != "" {
@@ -175,6 +199,8 @@ func TestOmniLoggerController_TableDriven(t *testing.T) {
 				sc.handleGetLog(rr, req)
 			case "retrieve":
 				sc.handleRetrieve(rr, req)
+			case "export":
+				sc.handleExport(rr, req)
 			default:
 				t.Fatalf("unknown handler %s", tt.handler)
 			}
@@ -206,6 +232,29 @@ func TestOmniLoggerController_TableDriven(t *testing.T) {
 				}
 			}
 
+			// export call expectations
+			if tt.handler == "export" {
+				if tt.expectExportCalled {
+					if !tt.mockSvc.ExportCalled {
+						t.Fatalf("expected Export to be called on the mock service")
+					}
+				} else {
+					if tt.mockSvc.ExportCalled {
+						t.Fatalf("did not expect Export to be called on the mock service")
+					}
+				}
+
+				// if export succeeded, validate body and header
+				if len(tt.expectedExportBytes) > 0 && rr.Code == http.StatusOK {
+					if !bytes.Equal(rr.Body.Bytes(), tt.expectedExportBytes) {
+						t.Fatalf("expected export bytes %v, got %v", tt.expectedExportBytes, rr.Body.Bytes())
+					}
+					if rr.Header().Get("Content-Disposition") != "attachment; filename=logs.xlsx" {
+						t.Fatalf("expected Content-Disposition header set, got %q", rr.Header().Get("Content-Disposition"))
+					}
+				}
+			}
+
 			// invalid JSON create should not call Create
 			if tt.handler == "create" && tt.body == "{{invalid-json" {
 				if tt.mockSvc.CreateCalled {
@@ -218,7 +267,7 @@ func TestOmniLoggerController_TableDriven(t *testing.T) {
 				t.Fatalf("expected counter %v, got %v", tt.expectedCounter, got)
 			}
 
-			// response body assertions
+			// response body assertions for single resource (Get)
 			if tt.expectedRespID > 0 && rr.Code == http.StatusOK {
 				var resp logs.Response
 				if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
