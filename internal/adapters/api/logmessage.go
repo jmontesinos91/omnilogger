@@ -2,7 +2,6 @@ package api
 
 import (
 	"encoding/json"
-	"github.com/prometheus/client_golang/prometheus/promauto"
 	"net/http"
 	"strconv"
 
@@ -15,6 +14,7 @@ import (
 	"github.com/jmontesinos91/osecurity/sts"
 	"github.com/jmontesinos91/terrors"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/sirupsen/logrus"
 )
 
@@ -43,6 +43,7 @@ func NewLogMessageController(server *HTTPServer, validator *validator.Validate, 
 	// Endpoints if we add JWTVerifyMiddleWare, we add the secure
 	server.Router.Group(func(r chi.Router) {
 		// r.Use(JwtVerifyMiddleware(server.Logger, sts))
+		r.Get("/v1/log_messages", sc.handleRetrieve)
 		r.Get("/v1/log_messages/{id}", sc.handleGet)
 		r.Post("/v1/log_messages", sc.handleCreate)
 		r.Post("/v1/log_messages/{id}", sc.handleUpdate)
@@ -113,4 +114,24 @@ func (sc *LogMessageController) handleUpdate(w http.ResponseWriter, r *http.Requ
 	}
 
 	RenderJSON(r.Context(), w, http.StatusAccepted, res)
+}
+
+func (sc *LogMessageController) handleRetrieve(w http.ResponseWriter, r *http.Request) {
+	// Increment metric
+	sc.counterMetric.Inc()
+
+	filter, err := log_message.ToParseFilterRequest(r)
+	if err != nil {
+		sc.log.Error(logrus.ErrorLevel, "handleRetrieve", "Invalid request parameters", err)
+		RenderError(r.Context(), w, err)
+		return
+	}
+
+	res, err := sc.logMessageSvc.Retrieve(r.Context(), filter)
+	if err != nil {
+		RenderError(r.Context(), w, err)
+		return
+	}
+
+	RenderJSON(r.Context(), w, http.StatusOK, res)
 }

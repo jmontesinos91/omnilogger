@@ -29,7 +29,7 @@ func withChiRouteParams(req *http.Request, params map[string]string) *http.Reque
 func TestLogMessageController_TableDriven(t *testing.T) {
 	type tc struct {
 		name            string
-		handler         string // "create", "get", "update"
+		handler         string // "create", "get", "update", "retrieve"
 		method          string
 		path            string
 		body            string
@@ -100,6 +100,26 @@ func TestLogMessageController_TableDriven(t *testing.T) {
 			expectedNot:     []int{http.StatusCreated},
 			expectedCounter: 1,
 		},
+		{
+			name:            "HandleRetrieve_Success",
+			handler:         "retrieve",
+			method:          http.MethodGet,
+			path:            "/v1/log_messages?lang=en&max=0&limit=10&page=1",
+			body:            "",
+			svc:             &logmessagesvcmock.IService{},
+			expectedCode:    http.StatusOK,
+			expectedCounter: 1,
+		},
+		{
+			name:            "HandleRetrieve_ServiceError_PropagatesError",
+			handler:         "retrieve",
+			method:          http.MethodGet,
+			path:            "/v1/log_messages?lang=en&max=0&limit=10&page=1",
+			body:            "",
+			svc:             &logmessagesvcmock.IService{RetrieveErr: errors.New("svc fail")},
+			expectedNot:     []int{http.StatusOK},
+			expectedCounter: 1,
+		},
 	}
 
 	for _, tt := range tests {
@@ -144,6 +164,8 @@ func TestLogMessageController_TableDriven(t *testing.T) {
 				sc.handleGet(rr, req)
 			case "update":
 				sc.handleUpdate(rr, req)
+			case "retrieve":
+				sc.handleRetrieve(rr, req)
 			default:
 				t.Fatalf("unknown handler %s", tt.handler)
 			}

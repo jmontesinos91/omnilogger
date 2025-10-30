@@ -6,6 +6,7 @@ import (
 	context "context"
 
 	"github.com/jmontesinos91/omnilogger/internal/repositories/log_message"
+
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -95,6 +96,43 @@ func (_m *IRepository) FindByIDAndLang(ctx context.Context, id *int, lang string
 	}
 
 	return r0, r1
+}
+
+// Retrieve provides a mock function with given fields: ctx, filter
+func (_m *IRepository) Retrieve(ctx context.Context, filter log_message.Filter) ([]log_message.Model, int, error) {
+	ret := _m.Called(ctx, filter)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Retrieve")
+	}
+
+	var r0 []log_message.Model
+	var r1 int
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, log_message.Filter) ([]log_message.Model, int, error)); ok {
+		return rf(ctx, filter)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, log_message.Filter) []log_message.Model); ok {
+		r0 = rf(ctx, filter)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]log_message.Model)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, log_message.Filter) int); ok {
+		r1 = rf(ctx, filter)
+	} else {
+		r1 = ret.Get(1).(int)
+	}
+
+	if rf, ok := ret.Get(2).(func(context.Context, log_message.Filter) error); ok {
+		r2 = rf(ctx, filter)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
 }
 
 // NewIRepository creates a new instance of IRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.

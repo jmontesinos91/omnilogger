@@ -6,9 +6,10 @@ import (
 )
 
 type IService struct {
-	GetErr    error
-	CreateErr error
-	UpdateErr error
+	GetErr      error
+	CreateErr   error
+	UpdateErr   error
+	RetrieveErr error
 }
 
 func (m *IService) GetByID(ctx context.Context, id *int) (*log_message.Response, error) {
@@ -30,4 +31,11 @@ func (m *IService) Update(ctx context.Context, id *int, lang string, payload *lo
 		return nil, m.UpdateErr
 	}
 	return &log_message.Response{ID: *id, Message: "updated"}, nil
+}
+
+func (m *IService) Retrieve(ctx context.Context, filter log_message.Filter) (*log_message.PaginatedRes, error) {
+	if m.RetrieveErr != nil {
+		return nil, m.RetrieveErr
+	}
+	return &log_message.PaginatedRes{Data: []log_message.Response{{ID: 1, Message: "updated"}}}, nil
 }

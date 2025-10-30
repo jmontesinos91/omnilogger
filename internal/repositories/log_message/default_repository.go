@@ -102,3 +102,28 @@ func (r *DatabaseRepository) Update(ctx context.Context, id *int, lang string, m
 
 	return nil
 }
+
+// Retrieve retrieves log messages based on the provided filter
+func (r *DatabaseRepository) Retrieve(ctx context.Context, filter Filter) ([]Model, int, error) {
+	var model []Model
+	query := r.db.NewSelect().Model(&model).
+		Order("id ASC").
+		Limit(filter.Size).
+		Offset(filter.From - 1)
+
+	if filter.ID != nil {
+		query = query.Where("id = ?", filter.ID)
+	}
+
+	if filter.Lang != "" {
+		query = query.Where("lang = ?", filter.Lang)
+	}
+
+	if err := query.Scan(ctx); err != nil {
+		return nil, 0, err
+	}
+
+	count, _ := query.Count(ctx)
+
+	return model, count, nil
+}
