@@ -29,7 +29,7 @@ func withChiRouteParams(req *http.Request, params map[string]string) *http.Reque
 func TestLogMessageController_TableDriven(t *testing.T) {
 	type tc struct {
 		name            string
-		handler         string // "create", "get", "update", "retrieve"
+		handler         string // "create", "get", "update", "retrieve", "delete"
 		method          string
 		path            string
 		body            string
@@ -120,6 +120,28 @@ func TestLogMessageController_TableDriven(t *testing.T) {
 			expectedNot:     []int{http.StatusOK},
 			expectedCounter: 1,
 		},
+		{
+			name:            "HandleDeleteLang_Success",
+			handler:         "delete",
+			method:          http.MethodDelete,
+			path:            "/v1/log_messages/5/es",
+			chiParams:       map[string]string{"id": "5", "lang": "es"},
+			body:            "",
+			svc:             &logmessagesvcmock.IService{},
+			expectedCode:    http.StatusNoContent,
+			expectedCounter: 1,
+		},
+		{
+			name:            "HandleDeleteLang_ServiceError_PropagatesError",
+			handler:         "delete",
+			method:          http.MethodDelete,
+			path:            "/v1/log_messages/5/es",
+			chiParams:       map[string]string{"id": "5", "lang": "es"},
+			body:            "",
+			svc:             &logmessagesvcmock.IService{DeleteLangErr: errors.New("svc fail")},
+			expectedCode:    http.StatusNoContent,
+			expectedCounter: 1,
+		},
 	}
 
 	for _, tt := range tests {
@@ -166,6 +188,8 @@ func TestLogMessageController_TableDriven(t *testing.T) {
 				sc.handleUpdate(rr, req)
 			case "retrieve":
 				sc.handleRetrieve(rr, req)
+			case "delete":
+				sc.handleDeleteLang(rr, req)
 			default:
 				t.Fatalf("unknown handler %s", tt.handler)
 			}

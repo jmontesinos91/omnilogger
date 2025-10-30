@@ -127,3 +127,21 @@ func (r *DatabaseRepository) Retrieve(ctx context.Context, filter Filter) ([]Mod
 
 	return model, count, nil
 }
+
+// DeleteLang deletes a log message by its ID and language
+func (r *DatabaseRepository) DeleteLang(ctx context.Context, id *int, lang string) error {
+	var logMessage Model
+	query := r.db.NewDelete().
+		Model(&logMessage).
+		Where("id = ?", id).
+		Where("lang = ?", lang)
+
+	if _, err := query.Exec(ctx); err != nil {
+		if err.Error() == sql.ErrNoRows.Error() {
+			return terrors.New(terrors.ErrNotFound, "Log message information not found", map[string]string{})
+		}
+		return fmt.Errorf("log_message_repository: Error while deleting for log_message_svc -> %w", err)
+	}
+
+	return nil
+}

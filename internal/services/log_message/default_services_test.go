@@ -498,3 +498,60 @@ func TestRetrieve(t *testing.T) {
 		})
 	}
 }
+
+func TestDeleteLang(t *testing.T) {
+	ctxLogger := logger.NewContextLogger("TestDeleteLang", "debug", logger.TextFormat)
+	ctx := context.WithValue(context.Background(), middleware.RequestIDKey, "test-request-id")
+	id := 12345
+
+	cases := []struct {
+		name     string
+		repoFunc func() *logsmessagemock.IRepository
+		assertFn func(t *testing.T, repo *logsmessagemock.IRepository, err error)
+	}{
+		{
+			name: "Happy path - delete lang succeeds",
+			repoFunc: func() *logsmessagemock.IRepository {
+				repoMock := &logsmessagemock.IRepository{}
+				repoMock.On("DeleteLang", mock.Anything, &id, "es").Return(nil)
+				return repoMock
+			},
+			assertFn: func(t *testing.T, repo *logsmessagemock.IRepository, err error) {
+				if !assert.NoError(t, err) {
+					return
+				}
+				repo.AssertCalled(t, "DeleteLang", mock.Anything, &id, "es")
+			},
+		},
+		{
+			name: "DB error - repository fails",
+			repoFunc: func() *logsmessagemock.IRepository {
+				repoMock := &logsmessagemock.IRepository{}
+				repoMock.On("DeleteLang", mock.Anything, &id, "es").
+					Return(terrors.New(terrors.ErrInternalService, "DB Error", nil))
+				return repoMock
+			},
+			assertFn: func(t *testing.T, repo *logsmessagemock.IRepository, err error) {
+				if !assert.Error(t, err) {
+					return
+				}
+				var terr *terrors.Error
+				if !assert.ErrorAs(t, err, &terr) {
+					return
+				}
+				assert.Equal(t, "Internal error service", terr.Message)
+				repo.AssertCalled(t, "DeleteLang", mock.Anything, &id, "es")
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			repo := tc.repoFunc()
+			service := NewDefaultService(ctxLogger, validator.New(), repo)
+			err := service.DeleteLang(ctx, &id, "es")
+			tc.assertFn(t, repo, err)
+		})
+	}
+}
