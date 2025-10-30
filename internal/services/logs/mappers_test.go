@@ -117,6 +117,7 @@ func TestToModel(t *testing.T) {
 func TestToResponse(t *testing.T) {
 	type args struct {
 		model *logs.Model
+		lng   string
 	}
 	type expected struct {
 		response *Response
@@ -127,7 +128,7 @@ func TestToResponse(t *testing.T) {
 		expected expected
 	}{
 		{
-			name: "Happy Path",
+			name: "Happy Path with english logMessage",
 			args: args{
 				model: &logs.Model{
 					ID:          "123e4567-e89b-12d3-a456-426614174000",
@@ -144,11 +145,11 @@ func TestToResponse(t *testing.T) {
 					UserID:      "user@example.com",
 					CreatedAt:   &time.Time{},
 					LogMessage: []*log_message.Model{
-						{
-							ID:      100,
-							Message: "Example log message"},
+						{ID: 100, Lang: "en", Message: "English message"},
+						{ID: 101, Lang: "es", Message: "Mensaje en español"},
 					},
 				},
+				lng: "en",
 			},
 			expected: expected{
 				response: &Response{
@@ -165,17 +166,16 @@ func TestToResponse(t *testing.T) {
 					Data:        "{\"key\":\"value\"}",
 					UserID:      "user@example.com",
 					CreatedAt:   &time.Time{},
-					LogMessage: []*log_message.Model{
-						{
-							ID:      100,
-							Message: "Example log message",
-						},
+					LogMessage: &log_message.Model{
+						ID:      100,
+						Lang:    "en",
+						Message: "English message",
 					},
 				},
 			},
 		},
 		{
-			name: "Empty Description Field",
+			name: "Happy Path with empty language (default to english)",
 			args: args{
 				model: &logs.Model{
 					ID:          "123e4567-e89b-12d3-a456-426614174000",
@@ -184,7 +184,7 @@ func TestToResponse(t *testing.T) {
 					Provider:    "TestProvider",
 					Level:       1,
 					Message:     100,
-					Description: "",
+					Description: "Log message test",
 					Path:        "/v1/resource",
 					Resource:    "RESOURCE",
 					Action:      "CREATE",
@@ -192,11 +192,11 @@ func TestToResponse(t *testing.T) {
 					UserID:      "user@example.com",
 					CreatedAt:   &time.Time{},
 					LogMessage: []*log_message.Model{
-						{
-							ID:      100,
-							Message: "Example log message"},
+						{ID: 100, Lang: "en", Message: "English message"},
+						{ID: 101, Lang: "es", Message: "Mensaje en español"},
 					},
 				},
+				lng: "",
 			},
 			expected: expected{
 				response: &Response{
@@ -206,7 +206,32 @@ func TestToResponse(t *testing.T) {
 					Provider:    "TestProvider",
 					Level:       1,
 					Message:     100,
-					Description: "Example log message",
+					Description: "Log message test",
+					Path:        "/v1/resource",
+					Resource:    "RESOURCE",
+					Action:      "CREATE",
+					Data:        "{\"key\":\"value\"}",
+					UserID:      "user@example.com",
+					CreatedAt:   &time.Time{},
+					LogMessage: &log_message.Model{
+						ID:      100,
+						Lang:    "en",
+						Message: "English message",
+					},
+				},
+			},
+		},
+		{
+			name: "Happy Path with spanish logMessage",
+			args: args{
+				model: &logs.Model{
+					ID:          "123e4567-e89b-12d3-a456-426614174000",
+					IpAddress:   "192.168.0.1",
+					ClientHost:  "localhost",
+					Provider:    "TestProvider",
+					Level:       1,
+					Message:     100,
+					Description: "Log message test",
 					Path:        "/v1/resource",
 					Resource:    "RESOURCE",
 					Action:      "CREATE",
@@ -214,10 +239,31 @@ func TestToResponse(t *testing.T) {
 					UserID:      "user@example.com",
 					CreatedAt:   &time.Time{},
 					LogMessage: []*log_message.Model{
-						{
-							ID:      100,
-							Message: "Example log message",
-						},
+						{ID: 100, Lang: "en", Message: "English message"},
+						{ID: 101, Lang: "es", Message: "Mensaje en español"},
+					},
+				},
+				lng: "es",
+			},
+			expected: expected{
+				response: &Response{
+					ID:          "123e4567-e89b-12d3-a456-426614174000",
+					IpAddress:   "192.168.0.1",
+					ClientHost:  "localhost",
+					Provider:    "TestProvider",
+					Level:       1,
+					Message:     100,
+					Description: "Log message test",
+					Path:        "/v1/resource",
+					Resource:    "RESOURCE",
+					Action:      "CREATE",
+					Data:        "{\"key\":\"value\"}",
+					UserID:      "user@example.com",
+					CreatedAt:   &time.Time{},
+					LogMessage: &log_message.Model{
+						ID:      101,
+						Lang:    "es",
+						Message: "Mensaje en español",
 					},
 				},
 			},
@@ -227,7 +273,7 @@ func TestToResponse(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 
-			result := ToResponse(tc.args.model)
+			result := ToResponse(tc.args.model, tc.args.lng)
 
 			assert.Equal(t, tc.expected.response.ID, result.ID)
 			assert.Equal(t, tc.expected.response.IpAddress, result.IpAddress)

@@ -8,6 +8,7 @@ func ToModel(payload *Payload) *log_message.Model {
 	return &log_message.Model{
 		ID:      payload.ID,
 		Message: payload.Message,
+		Lang:    payload.Lang,
 	}
 }
 
@@ -15,10 +16,12 @@ func ToResponse(model *log_message.Model) *Response {
 	return &Response{
 		ID:      model.ID,
 		Message: model.Message,
+		Lang:    model.Lang,
 	}
 }
 
 func ToModelUpdate(model *log_message.Model, payload Payload) *log_message.Model {
 	model.Message = payload.Message
+	model.Lang = payload.Lang
 	return model
 }

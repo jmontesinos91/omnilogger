@@ -57,21 +57,44 @@ func (_m *IRepository) FindByID(ctx context.Context, ID *int) (*log_message.Mode
 }
 
 // Update provides a mock function with given fields: ctx, model
-func (_m *IRepository) Update(ctx context.Context, id *int, model *log_message.Model) error {
+func (_m *IRepository) Update(ctx context.Context, id *int, lang string, model *log_message.Model) error {
 	ret := _m.Called(ctx, id, model)
 
 	if len(ret) == 0 {
-		panic("no return value specified for Create")
+		panic("no return value specified for Update")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, *int, *log_message.Model) error); ok {
-		r0 = rf(ctx, id, model)
+	if rf, ok := ret.Get(0).(func(context.Context, *int, string, *log_message.Model) error); ok {
+		r0 = rf(ctx, id, lang, model)
 	} else {
 		r0 = ret.Error(0)
 	}
 
 	return r0
+}
+
+// FindByIDAndLang provides a mock function with given fields: ctx, ID, lang
+func (_m *IRepository) FindByIDAndLang(ctx context.Context, id *int, lang string) (*log_message.Model, error) {
+	ret := _m.Called(ctx, id, lang)
+	if len(ret) == 0 {
+		panic("no return value specified for Update")
+	}
+
+	var r0 *log_message.Model
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *int) (*log_message.Model, error)); ok {
+		return rf(ctx, id)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *int) *log_message.Model); ok {
+		r0 = rf(ctx, id)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*log_message.Model)
+		}
+	}
+
+	return r0, r1
 }
 
 // NewIRepository creates a new instance of IRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.

@@ -24,21 +24,40 @@ func NewDatabaseRepository(l *logger.ContextLogger, conn *bun.DB) *DatabaseRepos
 	}
 }
 
+// FindByID finds a log message by its ID
 func (r *DatabaseRepository) FindByID(ctx context.Context, ID *int) (*Model, error) {
-	var payout Model
+	var logMessage Model
 	query := r.db.NewSelect().
-		Model(&payout).
+		Model(&logMessage).
 		Where("id = ?", ID)
 
 	if err := query.Scan(ctx); err != nil {
 		if err.Error() == sql.ErrNoRows.Error() {
-			return nil, terrors.New(terrors.ErrNotFound, "Payout information not found", map[string]string{})
+			return nil, terrors.New(terrors.ErrNotFound, "Log Message information not found", map[string]string{})
 		}
-		return nil, fmt.Errorf("payout_repository: Error while searching for countrysvc -> %v", err)
+		return nil, fmt.Errorf("log_message_repository: Error while searching for logmessage -> %v", err)
 	}
 
-	return &payout, nil
+	return &logMessage, nil
 
+}
+
+// FindByIDAndLang finds a log message by its ID and language
+func (r *DatabaseRepository) FindByIDAndLang(ctx context.Context, ID *int, lang string) (*Model, error) {
+	var logMessage Model
+	query := r.db.NewSelect().
+		Model(&logMessage).
+		Where("id = ?", ID).
+		Where("lang = ?", lang)
+
+	if err := query.Scan(ctx); err != nil {
+		if err.Error() == sql.ErrNoRows.Error() {
+			return nil, terrors.New(terrors.ErrNotFound, "Log Message information not found", map[string]string{})
+		}
+		return nil, fmt.Errorf("log_message_repository: Error while searching for logmessage -> %v", err)
+	}
+
+	return &logMessage, nil
 }
 
 // Create Handles the creation of a new payout record on a database
@@ -55,11 +74,14 @@ func (r *DatabaseRepository) Create(ctx context.Context, model *Model) error {
 	return nil
 }
 
-func (r *DatabaseRepository) Update(ctx context.Context, id *int, model *Model) error {
+// Update Handles the update of an existing log message record on a database
+func (r *DatabaseRepository) Update(ctx context.Context, id *int, lang string, model *Model) error {
 	query := r.db.NewUpdate().
 		Table("log_messages").
 		Set("message = ?", model.Message).
-		Where("id = ?", id)
+		Set("lang = ?", model.Lang).
+		Where("id = ?", id).
+		Where("lang = ?", lang)
 
 	// Execute the query
 	res, err := query.Exec(ctx)

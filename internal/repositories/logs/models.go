@@ -41,6 +41,7 @@ type Filter struct {
 	TenantID []int
 	UserID   []string
 	Target   []string
+	Lang     string
 	StartAt  time.Time
 	EndAt    time.Time
 	From     int

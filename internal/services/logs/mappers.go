@@ -3,6 +3,7 @@ package logs
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/jmontesinos91/omnilogger/domains/lang"
 	"github.com/jmontesinos91/omnilogger/domains/pagination"
 	"github.com/jmontesinos91/omnilogger/internal/repositories/log_message"
 	"net/http"
@@ -47,19 +48,30 @@ func ToModel(payload *Payload) (*logs.Model, error) {
 	}, nil
 }
 
-func ToResponse(model *logs.Model) *Response {
-	var LogMessage []*log_message.Model = nil
+func ToResponse(model *logs.Model, lng string) *Response {
+	if lng == "" {
+		lng = "en"
+	}
+
+	var LogMessage *log_message.Model = nil
+	var LogMessageId int
 	if model.LogMessage != nil {
 		for _, logModel := range model.LogMessage {
-			LogMessage = append(LogMessage, logModel)
+			if logModel.Lang == lng {
+				LogMessage = logModel
+			}
 		}
+	}
+
+	if LogMessage != nil {
+		LogMessageId = LogMessage.ID
+	} else {
+		LogMessageId = model.Message
 	}
 
 	var description string
 	if model.Description == "" {
-		if len(LogMessage) > 0 {
-			description = LogMessage[0].Message
-		}
+		description = lang.BuildMessage(model.Resource, LogMessageId, lng)
 	} else {
 		description = model.Description
 	}
@@ -102,6 +114,7 @@ func ToRepoFilter(filter Filter) logs.Filter {
 		TenantID: filter.TenantID,
 		UserID:   filter.UserID,
 		Target:   filter.Target,
+		Lang:     filter.Lang,
 		StartAt:  filter.StartAt,
 		EndAt:    filter.EndAt,
 		From:     from,

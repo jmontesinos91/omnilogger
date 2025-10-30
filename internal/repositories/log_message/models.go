@@ -10,4 +10,12 @@ type Model struct {
 
 	ID      int    `bun:"id,pk" json:"id"`
 	Message string `bun:"message" json:"message"`
+	Lang    string `bun:"lang" json:"lang"`
+}
+
+type Filter struct {
+	ID   *int
+	Lang string
+	From int
+	Size int
 }

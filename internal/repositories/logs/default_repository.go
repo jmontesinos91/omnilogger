@@ -30,7 +30,7 @@ func (r *DatabaseRepository) FindByID(ctx context.Context, ID *string, filter Fi
 	query := r.db.NewSelect().
 		Model(&payout).
 		Relation("LogMessage", func(q *bun.SelectQuery) *bun.SelectQuery {
-			return q.Where("model.id in (?)", filter.Message)
+			return q.Where("model.lang = ?", filter.Lang)
 		}).
 		Where("id = ?", ID)
 
@@ -64,7 +64,7 @@ func (r *DatabaseRepository) Retrieve(ctx context.Context, filter Filter) ([]Mod
 	var model []Model
 	query := r.db.NewSelect().Model(&model).
 		Relation("LogMessage", func(q *bun.SelectQuery) *bun.SelectQuery {
-			return q.Where("model.id in (?)", filter.Message)
+			return q.Where("model.lang = ?", filter.Lang)
 		}).
 		Order("created_at DESC").
 		Limit(filter.Size).

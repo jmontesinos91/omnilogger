@@ -77,14 +77,28 @@ func (s *DefaultService) Create(ctx context.Context, payload *Payload) (*Respons
 	return ToResponse(dbModel), nil
 }
 
-func (s *DefaultService) Update(ctx context.Context, id *int, payload *Payload) (*Response, error) {
+// Update model
+func (s *DefaultService) Update(ctx context.Context, id *int, lang string, payload *Payload) (*Response, error) {
 	requestID := ctx.Value(middleware.RequestIDKey).(string)
+
+	if id == nil || lang == "" {
+		s.log.WithContext(
+			logrus.ErrorLevel,
+			"Update",
+			"Invalid message id or lang code",
+			logger.Context{
+				tracekey.TrackingID: requestID,
+				"ID":                id,
+				"Lang":              lang,
+			}, nil)
+		return nil, terrors.New(terrors.ErrBadRequest, "Error: Invalid message id or lang code", map[string]string{})
+	}
 
 	if err := payload.SanitizeAndValidate(s.validate); err != nil {
 		return nil, terrors.New(terrors.ErrBadRequest, err.Error(), map[string]string{})
 	}
 
-	model, err := s.logMessagesRepo.FindByID(ctx, id)
+	model, err := s.logMessagesRepo.FindByIDAndLang(ctx, id, lang)
 	if err != nil {
 		s.log.WithContext(
 			logrus.ErrorLevel,
@@ -93,6 +107,7 @@ func (s *DefaultService) Update(ctx context.Context, id *int, payload *Payload) 
 			logger.Context{
 				tracekey.TrackingID: requestID,
 				"ID":                id,
+				"Lang":              lang,
 			}, err)
 
 		if model == nil {
@@ -103,7 +118,7 @@ func (s *DefaultService) Update(ctx context.Context, id *int, payload *Payload) 
 	}
 
 	model = ToModelUpdate(model, *payload)
-	errU := s.logMessagesRepo.Update(ctx, id, model)
+	errU := s.logMessagesRepo.Update(ctx, id, lang, model)
 	if errU != nil {
 		s.log.WithContext(
 			logrus.ErrorLevel,

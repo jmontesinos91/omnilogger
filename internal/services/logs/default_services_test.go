@@ -187,12 +187,14 @@ func TestGetByID(t *testing.T) {
 							Action:      "GET",
 							LogMessage: []*log_message.Model{
 								{
-									ID:      2,
+									ID:      100,
 									Message: "Example log message",
+									Lang:    "en",
 								},
 								{
-									ID:      4,
-									Message: "Another log message",
+									ID:      101,
+									Message: "Ejemplo de mensaje de registro",
+									Lang:    "es",
 								},
 							},
 						}, nil)
@@ -203,7 +205,7 @@ func TestGetByID(t *testing.T) {
 				ctx: ctx,
 				ID:  stringPtr("12345"),
 				filter: Filter{
-					Message: []int{2, 4},
+					Lang: "en",
 				},
 				expected: &Response{
 					ID:          "12345",
@@ -216,15 +218,10 @@ func TestGetByID(t *testing.T) {
 					Path:        "/example",
 					Resource:    "resource-path",
 					Action:      "GET",
-					LogMessage: []*log_message.Model{
-						{
-							ID:      2,
-							Message: "Example log message",
-						},
-						{
-							ID:      4,
-							Message: "Another log message",
-						},
+					LogMessage: &log_message.Model{
+						ID:      100,
+						Message: "Example log message",
+						Lang:    "en",
 					},
 				},
 			},
@@ -276,12 +273,12 @@ func TestGetByID(t *testing.T) {
 							Action:      "GET",
 							LogMessage: []*log_message.Model{
 								{
-									ID:      2,
+									ID:      100,
 									Message: "Example log message",
 								},
 								{
-									ID:      4,
-									Message: "Another log message",
+									ID:      101,
+									Message: "Ejemplo de mensaje de registro",
 								},
 							},
 						}, nil)
@@ -292,7 +289,7 @@ func TestGetByID(t *testing.T) {
 				ctx: ctx,
 				ID:  stringPtr("12345"),
 				filter: Filter{
-					Message: []int{2, 4},
+					Lang: "en",
 				},
 				expected: &Response{
 					ID:          "12345",
@@ -301,20 +298,11 @@ func TestGetByID(t *testing.T) {
 					Provider:    "ExampleProvider",
 					Level:       1,
 					Message:     2,
-					Description: "Example log message",
+					Description: "",
 					Path:        "/example",
 					Resource:    "resource-path",
 					Action:      "GET",
-					LogMessage: []*log_message.Model{
-						{
-							ID:      2,
-							Message: "Example log message",
-						},
-						{
-							ID:      4,
-							Message: "Another log message",
-						},
-					},
+					LogMessage:  (*log_message.Model)(nil),
 				},
 			},
 			err: false,
@@ -365,7 +353,7 @@ func TestGetByID(t *testing.T) {
 					Path:        "/example",
 					Resource:    "resource-path",
 					Action:      "GET",
-					LogMessage:  []*log_message.Model(nil),
+					LogMessage:  (*log_message.Model)(nil),
 				},
 			},
 			err: false,
@@ -465,6 +453,7 @@ func TestRetrieve(t *testing.T) {
 					Resource: "resource-path",
 					TenantID: []int{1, 2},
 					UserID:   []string{"1234", "5678"},
+					Lang:     "en",
 					StartAt:  time.Now().Add(-24 * time.Hour),
 					EndAt:    time.Now(),
 					Filter: pagination.Filter{
