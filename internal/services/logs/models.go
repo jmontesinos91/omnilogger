@@ -22,6 +22,7 @@ type Payload struct {
 	TenantCat   string `json:"tenant_cat"`
 	UserID      string `json:"user_id" validate:"required"`
 	Target      string `json:"target" validate:"required"`
+	Lang        string `json:"lang"`
 }
 
 // Response Holds the response for a created payout
@@ -55,6 +56,7 @@ type Filter struct {
 	TenantID []int
 	UserID   []string
 	Target   []string
+	Lang     string
 	StartAt  time.Time
 	EndAt    time.Time
 	pagination.Filter

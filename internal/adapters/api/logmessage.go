@@ -99,14 +99,14 @@ func (sc *LogMessageController) handleUpdate(w http.ResponseWriter, r *http.Requ
 	var payload log_message.Payload
 
 	id, _ := strconv.Atoi(chi.URLParam(r, "id"))
-
+	lang := chi.URLParam(r, "lang")
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 		terr := terrors.BadRequest(terrors.ErrBadRequest, "Malformed body", map[string]string{})
 		RenderError(r.Context(), w, terr)
 		return
 	}
 
-	res, err := sc.logMessageSvc.Update(r.Context(), &id, &payload)
+	res, err := sc.logMessageSvc.Update(r.Context(), &id, lang, &payload)
 	if err != nil {
 		RenderError(r.Context(), w, err)
 		return

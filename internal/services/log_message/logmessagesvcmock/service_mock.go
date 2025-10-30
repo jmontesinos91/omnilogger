@@ -25,7 +25,7 @@ func (m *IService) Create(ctx context.Context, payload *log_message.Payload) (*l
 	return &log_message.Response{ID: 1, Message: "created"}, nil
 }
 
-func (m *IService) Update(ctx context.Context, id *int, payload *log_message.Payload) (*log_message.Response, error) {
+func (m *IService) Update(ctx context.Context, id *int, lang string, payload *log_message.Payload) (*log_message.Response, error) {
 	if m.UpdateErr != nil {
 		return nil, m.UpdateErr
 	}

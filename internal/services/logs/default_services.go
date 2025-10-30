@@ -51,7 +51,7 @@ func (s *DefaultService) GetByID(ctx context.Context, ID *string, filter Filter)
 		return nil, terrors.New(terrors.ErrNotFound, "Log not found", map[string]string{})
 	}
 
-	return ToResponse(model), nil
+	return ToResponse(model, filter.Lang), nil
 }
 
 // Create model
@@ -84,7 +84,7 @@ func (s *DefaultService) Create(ctx context.Context, payload *Payload) (*Respons
 		return nil, terrors.New(terrors.ErrInternalService, "Internal error service", map[string]string{})
 	}
 
-	return ToResponse(model), nil
+	return ToResponse(model, payload.Lang), nil
 }
 
 // Retrieve logs with filter
@@ -107,7 +107,7 @@ func (s *DefaultService) Retrieve(ctx context.Context, filter Filter) (*Paginate
 	}
 
 	items := lop.Map(res, func(p logs.Model, _ int) Response {
-		return *ToResponse(&p)
+		return *ToResponse(&p, filter.Lang)
 	})
 
 	currentPage := filter.Page

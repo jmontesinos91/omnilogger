@@ -220,6 +220,7 @@ func TestUpdate(t *testing.T) {
 	type args struct {
 		ctx       context.Context
 		payload   *Payload
+		lang      string
 		id        *int
 		validator *validator.Validate
 	}
@@ -241,21 +242,24 @@ func TestUpdate(t *testing.T) {
 			repositoryOpts: repositoryOpts{
 				logsRepoFunc: func() *logsmessagemock.IRepository {
 					repoMock := &logsmessagemock.IRepository{}
-					repoMock.On("FindByID", mock.Anything, &id).
+					repoMock.On("FindByIDAndLang", mock.Anything, &id, "en").
 						Return(&log_message.Model{
 							ID:      12345,
-							Message: "Test desc",
+							Message: "Message test",
+							Lang:    "en",
 						}, nil)
-					repoMock.On("Update", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+					repoMock.On("Update", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 					return repoMock
 				},
 			},
 			args: args{
-				ctx: ctx,
-				id:  &id,
+				ctx:  ctx,
+				id:   &id,
+				lang: "en",
 				payload: &Payload{
 					ID:      12345,
 					Message: "Test description",
+					Lang:    "en",
 				},
 				validator: validator.New(),
 			},
@@ -263,7 +267,7 @@ func TestUpdate(t *testing.T) {
 			asserts: func(t *testing.T, ap assertsParams) bool {
 				return assert.NoError(t, ap.err) &&
 					assert.NotNil(t, ap.result) &&
-					ap.logsRepo.AssertCalled(t, "FindByID", mock.Anything, mock.Anything) &&
+					ap.logsRepo.AssertCalled(t, "FindByIDAndLang", mock.Anything, mock.Anything, mock.Anything) &&
 					ap.logsRepo.AssertCalled(t, "Update", mock.Anything, mock.Anything, mock.Anything)
 			},
 		},
@@ -272,10 +276,11 @@ func TestUpdate(t *testing.T) {
 			repositoryOpts: repositoryOpts{
 				logsRepoFunc: func() *logsmessagemock.IRepository {
 					repoMock := &logsmessagemock.IRepository{}
-					repoMock.On("FindByID", mock.Anything, &id).
+					repoMock.On("FindByIDAndLang", mock.Anything, &id, "en").
 						Return(&log_message.Model{
 							ID:      12345,
 							Message: "Test desc",
+							Lang:    "en",
 						}, nil)
 					repoMock.On("Update", mock.Anything, mock.Anything, mock.Anything).
 						Return(terrors.New(terrors.ErrInternalService, "DB Error", nil))
@@ -283,11 +288,13 @@ func TestUpdate(t *testing.T) {
 				},
 			},
 			args: args{
-				ctx: ctx,
-				id:  &id,
+				ctx:  ctx,
+				id:   &id,
+				lang: "en",
 				payload: &Payload{
 					ID:      12345,
 					Message: "Test description",
+					Lang:    "en",
 				},
 				validator: validator.New(),
 			},
@@ -302,10 +309,12 @@ func TestUpdate(t *testing.T) {
 		{
 			name: "Error on validation empty message",
 			args: args{
-				ctx: ctx,
-				id:  &id,
+				ctx:  ctx,
+				id:   &id,
+				lang: "en",
 				payload: &Payload{
-					ID: 12345,
+					ID:   12345,
+					Lang: "en",
 				},
 				validator: validator.New(),
 			},
@@ -320,10 +329,12 @@ func TestUpdate(t *testing.T) {
 		{
 			name: "Error on validation empty id",
 			args: args{
-				ctx: ctx,
-				id:  &id,
+				ctx:  ctx,
+				id:   &id,
+				lang: "en",
 				payload: &Payload{
 					Message: "Test description",
+					Lang:    "en",
 				},
 				validator: validator.New(),
 			},
@@ -332,6 +343,45 @@ func TestUpdate(t *testing.T) {
 				var terr *terrors.Error
 				return assert.ErrorAs(t, ap.err, &terr) &&
 					assert.Equal(t, "Key: 'Payload.ID' Error:Field validation for 'ID' failed on the 'required' tag", terr.Message) &&
+					assert.Nil(t, ap.result)
+			},
+		},
+		{
+			name: "Error on validation empty lang",
+			args: args{
+				ctx: ctx,
+				id:  &id,
+				payload: &Payload{
+					Message: "Test description",
+					Lang:    "en",
+				},
+				validator: validator.New(),
+			},
+			err: true,
+			asserts: func(t *testing.T, ap assertsParams) bool {
+				var terr *terrors.Error
+				return assert.ErrorAs(t, ap.err, &terr) &&
+					assert.Equal(t, "Error: Invalid message id or lang code", terr.Message) &&
+					assert.Nil(t, ap.result)
+			},
+		},
+		{
+			name: "Error on validation empty lang in payload",
+			args: args{
+				ctx:  ctx,
+				id:   &id,
+				lang: "en",
+				payload: &Payload{
+					ID:      id,
+					Message: "Test description",
+				},
+				validator: validator.New(),
+			},
+			err: true,
+			asserts: func(t *testing.T, ap assertsParams) bool {
+				var terr *terrors.Error
+				return assert.ErrorAs(t, ap.err, &terr) &&
+					assert.Equal(t, "Key: 'Payload.Lang' Error:Field validation for 'Lang' failed on the 'required' tag", terr.Message) &&
 					assert.Nil(t, ap.result)
 			},
 		},
@@ -344,7 +394,7 @@ func TestUpdate(t *testing.T) {
 			}
 
 			service := NewDefaultService(ctxLogger, tc.args.validator, tc.repositoryOpts.logsRepo)
-			result, err := service.Update(tc.args.ctx, tc.args.id, tc.args.payload)
+			result, err := service.Update(tc.args.ctx, tc.args.id, tc.args.lang, tc.args.payload)
 
 			assertsParams := assertsParams{
 				repositoryOpts: tc.repositoryOpts,

@@ -67,6 +67,18 @@ func TestLogMessageController_TableDriven(t *testing.T) {
 			expectedRespID:  42,
 		},
 		{
+			name:            "HandleUpdate_UsesLangURLParam",
+			handler:         "update",
+			method:          http.MethodPost,
+			path:            "/v1/log_messages/5/es",
+			body:            `{"message":"updated"}`,
+			chiParams:       map[string]string{"id": "5", "lang": "es"},
+			svc:             &logmessagesvcmock.IService{},
+			expectedCode:    http.StatusAccepted,
+			expectedCounter: 1,
+			expectedRespID:  5,
+		},
+		{
 			name:            "HandleUpdate_BadJSON_IncrementsCounterAndReturnsBadRequest",
 			handler:         "update",
 			method:          http.MethodPost,

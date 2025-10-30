@@ -24,7 +24,8 @@ func TestUnmarshalPayload(t *testing.T) {
 		"old_data": "{\"key\":\"old_value\"}",
 		"tenant_cat": "[{\"id\":1,\"name\":\"test\"}]",
 		"user_id": "12",
-		"target": "LOGS TARGET"
+		"target": "LOGS TARGET",
+		"lang": "en"
 	}`
 
 	var response Payload
@@ -46,6 +47,7 @@ func TestUnmarshalPayload(t *testing.T) {
 	assert.Equal(t, "[{\"id\":1,\"name\":\"test\"}]", response.TenantCat)
 	assert.Equal(t, "12", response.UserID)
 	assert.Equal(t, "LOGS TARGET", response.Target)
+	assert.Equal(t, "en", response.Lang)
 }
 
 func TestUnmarshalResponse(t *testing.T) {
@@ -103,6 +105,7 @@ func TestFilter(t *testing.T) {
 		TenantID: []int{1, 2},
 		UserID:   []string{"1", "2"},
 		Target:   []string{"LOGS TARGET"},
+		Lang:     "en",
 		StartAt:  startAt,
 		EndAt:    endAt,
 		Filter: pagination.Filter{

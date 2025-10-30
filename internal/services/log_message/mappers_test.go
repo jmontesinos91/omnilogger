@@ -112,7 +112,8 @@ func TestToModelUpdate(t *testing.T) {
 		payload Payload
 	}
 	type expected struct {
-		model *log_message.Model
+		model    *log_message.Model
+		notEqual bool
 	}
 	cases := []struct {
 		name     string
@@ -125,16 +126,42 @@ func TestToModelUpdate(t *testing.T) {
 				model: &log_message.Model{
 					ID:      1234,
 					Message: "test1",
+					Lang:    "en",
 				},
 				payload: Payload{
 					ID:      12345,
 					Message: "Test 2",
+					Lang:    "en",
 				},
 			},
 			expected: expected{
 				model: &log_message.Model{
 					ID:      1234,
 					Message: "Test 2",
+					Lang:    "en",
+				},
+			},
+		},
+		{
+			name: "Wrong Lang Update",
+			args: args{
+				model: &log_message.Model{
+					ID:      1234,
+					Message: "test1",
+					Lang:    "es",
+				},
+				payload: Payload{
+					ID:      12345,
+					Message: "Test 2",
+					Lang:    "en",
+				},
+			},
+			expected: expected{
+				notEqual: true,
+				model: &log_message.Model{
+					ID:      1234,
+					Message: "Test 2",
+					Lang:    "es",
 				},
 			},
 		},
@@ -144,7 +171,12 @@ func TestToModelUpdate(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			result := ToModelUpdate(tc.args.model, tc.args.payload)
 
-			assert.Equal(t, tc.expected.model.ID, result.ID)
+			if tc.expected.notEqual {
+				assert.NotEqual(t, tc.expected.model.Lang, result.Lang)
+			} else {
+				assert.Equal(t, tc.expected.model.ID, result.ID)
+				assert.Equal(t, tc.expected.model.Lang, result.Lang)
+			}
 		})
 	}
 }
