@@ -8,6 +8,7 @@ import (
 	tracekey "github.com/jmontesinos91/ologs/logger/v2"
 	"github.com/jmontesinos91/omnilogger/internal/repositories/log_message"
 	"github.com/jmontesinos91/terrors"
+	lop "github.com/samber/lo/parallel"
 	"github.com/sirupsen/logrus"
 )
 
@@ -133,4 +134,34 @@ func (s *DefaultService) Update(ctx context.Context, id *int, lang string, paylo
 	}
 
 	return ToResponse(model), nil
+}
+
+// Retrieve service to get log messages with filters
+func (s *DefaultService) Retrieve(ctx context.Context, filter Filter) (*PaginatedRes, error) {
+	requestID := ctx.Value(middleware.RequestIDKey).(string)
+
+	repoFilter := ToRepoFilter(filter)
+
+	res, total, err := s.logMessagesRepo.Retrieve(ctx, repoFilter)
+	if err != nil {
+		s.log.WithContext(
+			logrus.ErrorLevel,
+			"Retrieve",
+			"Error retrieving log messages: %v",
+			logger.Context{
+				tracekey.TrackingID: requestID,
+			}, err)
+		return nil, err
+	}
+
+	items := lop.Map(res, func(p log_message.Model, _ int) Response {
+		return *ToResponse(&p)
+	})
+
+	return &PaginatedRes{
+		Data:  items,
+		Size:  filter.Size,
+		Total: total,
+		Page:  filter.Page,
+	}, nil
 }

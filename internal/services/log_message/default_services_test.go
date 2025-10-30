@@ -5,6 +5,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-playground/validator/v10"
 	"github.com/jmontesinos91/ologs/logger"
+	"github.com/jmontesinos91/omnilogger/domains/pagination"
 	"github.com/jmontesinos91/omnilogger/internal/repositories/log_message"
 	"github.com/jmontesinos91/omnilogger/internal/repositories/log_message/logsmessagemock"
 	"github.com/jmontesinos91/terrors"
@@ -406,6 +407,94 @@ func TestUpdate(t *testing.T) {
 			if !tc.asserts(t, assertsParams) {
 				t.Errorf("Assert error on test case: %s", tc.name)
 			}
+		})
+	}
+}
+
+func TestRetrieve(t *testing.T) {
+	ctxLogger := logger.NewContextLogger("TestRetrieve", "debug", logger.TextFormat)
+	ctx := context.WithValue(context.Background(), middleware.RequestIDKey, "test-request-id")
+
+	cases := []struct {
+		name     string
+		repoFunc func() *logsmessagemock.IRepository
+		filter   Filter
+		assertFn func(t *testing.T, repo *logsmessagemock.IRepository, res *PaginatedRes, err error)
+	}{
+		{
+			name: "Happy path - one item",
+			repoFunc: func() *logsmessagemock.IRepository {
+				repoMock := &logsmessagemock.IRepository{}
+				repoMock.On("Retrieve", mock.Anything, mock.Anything).
+					Return([]log_message.Model{
+						{ID: 12345, Message: "msg", Lang: "en"},
+					}, 1, nil)
+				return repoMock
+			},
+			filter: Filter{Filter: pagination.Filter{Page: 1, Size: 10}},
+			assertFn: func(t *testing.T, repo *logsmessagemock.IRepository, res *PaginatedRes, err error) {
+				if !assert.NoError(t, err) {
+					return
+				}
+				if !assert.NotNil(t, res) {
+					return
+				}
+				assert.Equal(t, 1, len(res.Data))
+				assert.Equal(t, 12345, res.Data[0].ID)
+				assert.Equal(t, 1, res.Total)
+				repo.AssertCalled(t, "Retrieve", mock.Anything, mock.Anything)
+			},
+		},
+		{
+			name: "Not found - empty result",
+			repoFunc: func() *logsmessagemock.IRepository {
+				repoMock := &logsmessagemock.IRepository{}
+				repoMock.On("Retrieve", mock.Anything, mock.Anything).
+					Return([]log_message.Model{}, 0, nil)
+				return repoMock
+			},
+			filter: Filter{Filter: pagination.Filter{Page: 1, Size: 10}},
+			assertFn: func(t *testing.T, repo *logsmessagemock.IRepository, res *PaginatedRes, err error) {
+				if !assert.NoError(t, err) {
+					return
+				}
+				if !assert.NotNil(t, res) {
+					return
+				}
+				assert.Equal(t, 0, len(res.Data))
+				assert.Equal(t, 0, res.Total)
+				repo.AssertCalled(t, "Retrieve", mock.Anything, mock.Anything)
+			},
+		},
+		{
+			name: "DB error - repository fails",
+			repoFunc: func() *logsmessagemock.IRepository {
+				repoMock := &logsmessagemock.IRepository{}
+				repoMock.On("Retrieve", mock.Anything, mock.Anything).
+					Return(nil, 0, terrors.New(terrors.ErrInternalService, "DB Error", nil))
+				return repoMock
+			},
+			filter: Filter{Filter: pagination.Filter{Page: 1, Size: 10}},
+			assertFn: func(t *testing.T, repo *logsmessagemock.IRepository, res *PaginatedRes, err error) {
+				if !assert.Error(t, err) {
+					return
+				}
+				assert.Nil(t, res)
+				var terr *terrors.Error
+				assert.ErrorAs(t, err, &terr)
+				assert.Equal(t, "DB Error", terr.Message)
+				repo.AssertCalled(t, "Retrieve", mock.Anything, mock.Anything)
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			repo := tc.repoFunc()
+			service := NewDefaultService(ctxLogger, validator.New(), repo)
+			res, err := service.Retrieve(ctx, tc.filter)
+			tc.assertFn(t, repo, res, err)
 		})
 	}
 }

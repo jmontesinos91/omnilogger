@@ -2,6 +2,7 @@ package log_message
 
 import (
 	"github.com/go-playground/validator/v10"
+	"github.com/jmontesinos91/omnilogger/domains/pagination"
 )
 
 // Payload payload example
@@ -21,6 +22,15 @@ type Response struct {
 type Filter struct {
 	ID   *int
 	Lang string
+	pagination.Filter
+}
+
+type PaginatedRes struct {
+	Data  []Response `json:"data"`
+	From  int        `json:"from"`
+	Size  int        `json:"size"`
+	Total int        `json:"total"`
+	Page  int        `json:"current_page"`
 }
 
 func (r *Payload) SanitizeAndValidate(validate *validator.Validate) error {
