@@ -11,4 +11,5 @@ type IService interface {
 	GetByID(ctx context.Context, id *string, filter Filter) (*Response, error)
 	Retrieve(ctx context.Context, filter Filter) (*PaginatedRes, error)
 	CreateLogFromKafka(ctx context.Context, logCreated *eventfactory.LogCreatedPayload) error
+	Export(ctx context.Context, filter Filter) ([]byte, error)
 }

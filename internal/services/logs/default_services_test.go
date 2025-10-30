@@ -2,10 +2,12 @@ package logs
 
 import (
 	"context"
+	"errors"
 	"github.com/jmontesinos91/oevents/eventfactory"
 	"github.com/jmontesinos91/omnilogger/domains/pagination"
 	"github.com/jmontesinos91/omnilogger/internal/repositories/log_message"
 	"github.com/jmontesinos91/omnilogger/internal/repositories/logs"
+	"github.com/jmontesinos91/osecurity/sts"
 	"testing"
 	"time"
 
@@ -676,6 +678,182 @@ func TestCreateLogFromKafka(t *testing.T) {
 
 			if !tc.asserts(t, err, assertsParams) {
 				t.Errorf("Assert error on test case: %s", tc.name)
+			}
+		})
+	}
+}
+
+func TestExport(t *testing.T) {
+	ctxBack := context.Background()
+	ctxBack = context.WithValue(ctxBack, middleware.RequestIDKey, "unit-test-request-id")
+	ctxBack = context.WithValue(ctxBack, &sts.Claim, sts.Claims{
+		UserID: 0,
+		Role:   "unit-test-role",
+	})
+	log := logger.NewContextLogger("TestExport", "debug", logger.TextFormat)
+
+	type repositoryOpts struct {
+		logsRepo     *logsmock.IRepository
+		logsRepoFunc func() *logsmock.IRepository
+	}
+
+	type args struct {
+		ctx    context.Context
+		filter Filter
+	}
+
+	type assertsParams struct {
+		args
+		repositoryOpts
+		result []byte
+	}
+
+	cases := []struct {
+		name           string
+		repositoryOpts repositoryOpts
+		args           args
+		err            bool
+		asserts        func(*testing.T, error, assertsParams) bool
+	}{
+		{
+			name: "Happy path",
+			repositoryOpts: repositoryOpts{
+				logsRepoFunc: func() *logsmock.IRepository {
+					repositoryMock := &logsmock.IRepository{}
+					repositoryMock.On("Export", mock.Anything, mock.Anything).
+						Return([]logs.Model{
+							{
+								ID:          "12345",
+								IpAddress:   "192.168.1.1",
+								ClientHost:  "localhost",
+								Provider:    "ExampleProvider",
+								Level:       1,
+								Message:     2,
+								Description: "Test description",
+								Path:        "/example",
+								Resource:    "resource-path",
+								Action:      "RETRIEVE",
+							},
+						}, nil)
+					return repositoryMock
+				},
+			},
+			args: args{
+				filter: Filter{
+					Provider: []string{"aws", "azure"},
+					Message:  []int{1001, 1002},
+					Level:    []string{"INFO", "ERROR"},
+					Action:   []string{"CREATE", "DELETE"},
+					Path:     "/v1/user/auth",
+					Resource: "USER",
+					TenantID: []int{1, 2, 3},
+					UserID:   []string{"user1@example.com", "user2@example.com"},
+					Lang:     "en",
+					StartAt:  time.Date(2024, time.December, 25, 0, 0, 0, 0, time.UTC),
+					EndAt:    time.Date(2024, time.December, 30, 23, 59, 59, 0, time.UTC),
+					Filter: pagination.Filter{
+						Page:     1,
+						Size:     10,
+						Offset:   0,
+						SortBy:   "created_at",
+						SortDesc: true,
+					},
+				},
+			},
+			err: false,
+			asserts: func(t *testing.T, err error, ap assertsParams) bool {
+				return assert.NoError(t, err) &&
+					assert.NotNil(t, ap.result) &&
+					assert.NotEmpty(t, ap.result) &&
+					ap.logsRepo.AssertCalled(t, "Export", mock.Anything, mock.Anything)
+			},
+		},
+		{
+			name: "Empty values",
+			repositoryOpts: repositoryOpts{
+				logsRepoFunc: func() *logsmock.IRepository {
+					repositoryMock := &logsmock.IRepository{}
+					repositoryMock.On("Export", mock.Anything, mock.Anything).
+						Return([]logs.Model{}, nil)
+					return repositoryMock
+				},
+			},
+			args: args{
+				filter: Filter{},
+			},
+			err: false,
+			asserts: func(t *testing.T, err error, ap assertsParams) bool {
+				return assert.NoError(t, err) &&
+					assert.NotNil(t, ap.result) &&
+					assert.NotEmpty(t, ap.result) &&
+					ap.logsRepo.AssertCalled(t, "Export", mock.Anything, mock.Anything)
+			},
+		},
+		{
+			name: "Error in logsRepo.Export",
+			repositoryOpts: repositoryOpts{
+				logsRepoFunc: func() *logsmock.IRepository {
+					repositoryMock := &logsmock.IRepository{}
+					repositoryMock.On("Export", mock.Anything, mock.Anything).
+						Return(nil, errors.New("internal_service: Internal error service"))
+					return repositoryMock
+				},
+			},
+			args: args{
+				filter: Filter{
+					Provider: []string{"aws", "azure"},
+					Message:  []int{1001, 1002},
+					Level:    []string{"INFO", "ERROR"},
+					Action:   []string{"CREATE", "DELETE"},
+					Path:     "/v1/user/auth",
+					Resource: "USER",
+					TenantID: []int{1, 2, 3},
+					UserID:   []string{"user1@example.com", "user2@example.com"},
+					Lang:     "en",
+					StartAt:  time.Date(2024, time.December, 25, 0, 0, 0, 0, time.UTC),
+					EndAt:    time.Date(2024, time.December, 30, 23, 59, 59, 0, time.UTC),
+					Filter: pagination.Filter{
+						Page:     1,
+						Size:     10,
+						Offset:   0,
+						SortBy:   "created_at",
+						SortDesc: true,
+					},
+				},
+			},
+			err: true,
+			asserts: func(t *testing.T, err error, ap assertsParams) bool {
+				return assert.Error(t, err) &&
+					assert.Contains(t, err.Error(), "internal_service: Internal error service") &&
+					ap.logsRepo.AssertCalled(t, "Export", mock.Anything, mock.Anything)
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.args.ctx == nil {
+				tc.args.ctx = ctxBack
+			}
+
+			if tc.repositoryOpts.logsRepoFunc != nil {
+				tc.repositoryOpts.logsRepo = tc.repositoryOpts.logsRepoFunc()
+			}
+
+			trafficSvc := NewDefaultService(log, tc.repositoryOpts.logsRepo)
+			result, err := trafficSvc.Export(tc.args.ctx, tc.args.filter)
+			if (err != nil) != tc.err {
+				t.Errorf("DefaultService.HandleExport() error = %v, wantErr %v", err, tc.err)
+			}
+
+			assertsParams := assertsParams{
+				repositoryOpts: tc.repositoryOpts,
+				args:           tc.args,
+				result:         result,
+			}
+
+			if !tc.asserts(t, err, assertsParams) {
+				t.Errorf("Assert error on test = '%v'", tc.name)
 			}
 		})
 	}

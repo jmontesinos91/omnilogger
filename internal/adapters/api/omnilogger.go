@@ -45,6 +45,7 @@ func NewOmniLoggerController(server *HTTPServer, validator *validator.Validate, 
 		r.Get("/v1/logs/{id}", sc.handleGetLog)
 		r.Post("/v1/logs", sc.handleCreate)
 		r.Get("/v1/logs", sc.handleRetrieve)
+		r.Get("/v1/logs/export", sc.handleExport)
 	})
 
 	return sc
@@ -121,4 +122,26 @@ func (sc *OmniLoggerController) handleRetrieve(w http.ResponseWriter, r *http.Re
 	}
 
 	RenderJSON(r.Context(), w, http.StatusOK, res)
+}
+
+func (sc *OmniLoggerController) handleExport(w http.ResponseWriter, r *http.Request) {
+	// Increment metric
+	sc.counterMetric.Inc()
+
+	filter, err := logs.ToParseFilterRequest(r)
+	if err != nil {
+		sc.log.Error(logrus.ErrorLevel, "handleRetrieve", "Invalid request parameters", err)
+		RenderError(r.Context(), w, err)
+		return
+	}
+
+	bytes, err := sc.logsSvc.Export(r.Context(), filter)
+	if err != nil {
+		RenderError(r.Context(), w, err)
+		return
+	}
+
+	w.Header().Set("Content-Disposition", "attachment; filename=logs.xlsx")
+
+	RenderFile(r.Context(), w, http.StatusOK, bytes)
 }
