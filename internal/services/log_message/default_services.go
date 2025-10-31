@@ -165,3 +165,53 @@ func (s *DefaultService) Retrieve(ctx context.Context, filter Filter) (*Paginate
 		Page:  filter.Page,
 	}, nil
 }
+
+// DeleteLang service to delete a language from a log message
+func (s *DefaultService) DeleteLang(ctx context.Context, id *int, lang string) error {
+	requestID := ctx.Value(middleware.RequestIDKey).(string)
+
+	if id == nil {
+		s.log.WithContext(
+			logrus.ErrorLevel,
+			"DeleteLang",
+			"Missing id param: %v",
+			logger.Context{
+				tracekey.TrackingID: requestID,
+				"ID":                id,
+				"Lang":              lang,
+			}, nil)
+
+		return terrors.New(terrors.ErrBadRequest, "Missing id param", map[string]string{})
+	}
+
+	if lang == "" {
+		s.log.WithContext(
+			logrus.ErrorLevel,
+			"DeleteLang",
+			"Missing lang param: %v",
+			logger.Context{
+				tracekey.TrackingID: requestID,
+				"ID":                id,
+				"Lang":              lang,
+			}, nil)
+
+		return terrors.New(terrors.ErrBadRequest, "Missing lang param", map[string]string{})
+	}
+
+	err := s.logMessagesRepo.DeleteLang(ctx, id, lang)
+	if err != nil {
+		s.log.WithContext(
+			logrus.ErrorLevel,
+			"DeleteLang",
+			"Error deleting lang: %v",
+			logger.Context{
+				tracekey.TrackingID: requestID,
+				"ID":                id,
+				"Lang":              lang,
+			}, err)
+
+		return terrors.New(terrors.ErrInternalService, "Internal error service", map[string]string{})
+	}
+
+	return nil
+}

@@ -47,6 +47,7 @@ func NewLogMessageController(server *HTTPServer, validator *validator.Validate, 
 		r.Get("/v1/log_messages/{id}", sc.handleGet)
 		r.Post("/v1/log_messages", sc.handleCreate)
 		r.Post("/v1/log_messages/{id}", sc.handleUpdate)
+		r.Delete("/v1/log_messages/{id}/{lang}", sc.handleDeleteLang)
 	})
 
 	return sc
@@ -134,4 +135,19 @@ func (sc *LogMessageController) handleRetrieve(w http.ResponseWriter, r *http.Re
 	}
 
 	RenderJSON(r.Context(), w, http.StatusOK, res)
+}
+
+func (sc *LogMessageController) handleDeleteLang(w http.ResponseWriter, r *http.Request) {
+	sc.counterMetric.Inc()
+
+	id, _ := strconv.Atoi(chi.URLParam(r, "id"))
+	lang := chi.URLParam(r, "lang")
+
+	err := sc.logMessageSvc.DeleteLang(r.Context(), &id, lang)
+	if err != nil {
+		RenderError(r.Context(), w, err)
+		return
+	}
+
+	RenderJSON(r.Context(), w, http.StatusNoContent, nil)
 }
