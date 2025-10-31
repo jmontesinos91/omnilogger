@@ -60,7 +60,7 @@ func (r *DatabaseRepository) FindByIDAndLang(ctx context.Context, ID *int, lang 
 	return &logMessage, nil
 }
 
-// Create Handles the creation of a new payout record on a database
+// Create Handles the creation of a new log message record on a database
 func (r *DatabaseRepository) Create(ctx context.Context, model *Model) error {
 	_, err := r.db.NewInsert().
 		Model(model).
@@ -135,6 +135,23 @@ func (r *DatabaseRepository) DeleteLang(ctx context.Context, id *int, lang strin
 		Model(&logMessage).
 		Where("id = ?", id).
 		Where("lang = ?", lang)
+
+	if _, err := query.Exec(ctx); err != nil {
+		if err.Error() == sql.ErrNoRows.Error() {
+			return terrors.New(terrors.ErrNotFound, "Log message information not found", map[string]string{})
+		}
+		return fmt.Errorf("log_message_repository: Error while deleting for log_message_svc -> %w", err)
+	}
+
+	return nil
+}
+
+// DeleteMessage deletes a log message by its ID
+func (r *DatabaseRepository) DeleteMessage(ctx context.Context, id *int) error {
+	var logMessage Model
+	query := r.db.NewDelete().
+		Model(&logMessage).
+		Where("id = ?", id)
 
 	if _, err := query.Exec(ctx); err != nil {
 		if err.Error() == sql.ErrNoRows.Error() {

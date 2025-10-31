@@ -6,11 +6,12 @@ import (
 )
 
 type IService struct {
-	GetErr        error
-	CreateErr     error
-	UpdateErr     error
-	RetrieveErr   error
-	DeleteLangErr error
+	GetErr           error
+	CreateErr        error
+	UpdateErr        error
+	RetrieveErr      error
+	DeleteLangErr    error
+	DeleteMessageErr error
 }
 
 func (m *IService) GetByID(ctx context.Context, id *int) (*log_message.Response, error) {
@@ -42,8 +43,15 @@ func (m *IService) Retrieve(ctx context.Context, filter log_message.Filter) (*lo
 }
 
 func (m *IService) DeleteLang(ctx context.Context, id *int, lang string) error {
-	if m.RetrieveErr != nil {
-		return m.RetrieveErr
+	if m.DeleteLangErr != nil {
+		return m.DeleteLangErr
+	}
+	return nil
+}
+
+func (m *IService) DeleteMessage(ctx context.Context, id *int) error {
+	if m.DeleteMessageErr != nil {
+		return m.DeleteMessageErr
 	}
 	return nil
 }
