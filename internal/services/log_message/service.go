@@ -11,4 +11,5 @@ type IService interface {
 	Update(ctx context.Context, id *int, lang string, payload *Payload) (*Response, error)
 	Retrieve(ctx context.Context, filter Filter) (*PaginatedRes, error)
 	DeleteLang(ctx context.Context, id *int, lang string) error
+	DeleteMessage(ctx context.Context, id *int) error
 }

@@ -153,6 +153,24 @@ func (_m *IRepository) DeleteLang(ctx context.Context, id *int, Lang string) err
 	return r0
 }
 
+// DeleteMessage(ctx context.Context, ID *int) error
+func (_m *IRepository) DeleteMessage(ctx context.Context, id *int) error {
+	ret := _m.Called(ctx, id)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Create")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, *int) error); ok {
+		r0 = rf(ctx, id)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // NewIRepository creates a new instance of IRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewIRepository(t interface {

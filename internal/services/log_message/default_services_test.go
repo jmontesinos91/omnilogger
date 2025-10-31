@@ -555,3 +555,82 @@ func TestDeleteLang(t *testing.T) {
 		})
 	}
 }
+
+func TestDeleteMessage(t *testing.T) {
+	ctxLogger := logger.NewContextLogger("TestDeleteMessage", "debug", logger.TextFormat)
+	ctx := context.WithValue(context.Background(), middleware.RequestIDKey, "test-request-id")
+	id := 12345
+
+	cases := []struct {
+		name     string
+		repoFunc func() *logsmessagemock.IRepository
+		assertFn func(t *testing.T, repo *logsmessagemock.IRepository, err error)
+	}{
+		{
+			name: "Happy path - delete message succeeds",
+			repoFunc: func() *logsmessagemock.IRepository {
+				repoMock := &logsmessagemock.IRepository{}
+				repoMock.On("DeleteMessage", mock.Anything, &id).Return(nil)
+				return repoMock
+			},
+			assertFn: func(t *testing.T, repo *logsmessagemock.IRepository, err error) {
+				if !assert.NoError(t, err) {
+					return
+				}
+				repo.AssertCalled(t, "DeleteMessage", mock.Anything, &id)
+			},
+		},
+		{
+			name: "Error - missing id param",
+			repoFunc: func() *logsmessagemock.IRepository {
+				// no expectations; should not be called
+				return &logsmessagemock.IRepository{}
+			},
+			assertFn: func(t *testing.T, repo *logsmessagemock.IRepository, err error) {
+				if !assert.Error(t, err) {
+					return
+				}
+				// error must report bad request
+				assert.Contains(t, err.Error(), terrors.ErrBadRequest)
+				repo.AssertNotCalled(t, "DeleteMessage", mock.Anything, mock.Anything)
+			},
+		},
+		{
+			name: "DB error - repository fails",
+			repoFunc: func() *logsmessagemock.IRepository {
+				repoMock := &logsmessagemock.IRepository{}
+				repoMock.On("DeleteMessage", mock.Anything, &id).
+					Return(terrors.New(terrors.ErrInternalService, "DB Error", nil))
+				return repoMock
+			},
+			assertFn: func(t *testing.T, repo *logsmessagemock.IRepository, err error) {
+				if !assert.Error(t, err) {
+					return
+				}
+				var terr *terrors.Error
+				if !assert.ErrorAs(t, err, &terr) {
+					return
+				}
+				assert.Equal(t, "Internal error service", terr.Message)
+				repo.AssertCalled(t, "DeleteMessage", mock.Anything, &id)
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			repo := tc.repoFunc()
+			service := NewDefaultService(ctxLogger, validator.New(), repo)
+
+			var err error
+			if tc.name == "Error - missing id param" {
+				err = service.DeleteMessage(ctx, nil)
+			} else {
+				err = service.DeleteMessage(ctx, &id)
+			}
+
+			tc.assertFn(t, repo, err)
+		})
+	}
+}

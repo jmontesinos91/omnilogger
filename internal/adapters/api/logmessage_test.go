@@ -29,7 +29,7 @@ func withChiRouteParams(req *http.Request, params map[string]string) *http.Reque
 func TestLogMessageController_TableDriven(t *testing.T) {
 	type tc struct {
 		name            string
-		handler         string // "create", "get", "update", "retrieve", "delete"
+		handler         string // "create", "get", "update", "retrieve", "delete", "delete_msg"
 		method          string
 		path            string
 		body            string
@@ -139,7 +139,29 @@ func TestLogMessageController_TableDriven(t *testing.T) {
 			chiParams:       map[string]string{"id": "5", "lang": "es"},
 			body:            "",
 			svc:             &logmessagesvcmock.IService{DeleteLangErr: errors.New("svc fail")},
+			expectedCode:    http.StatusInternalServerError,
+			expectedCounter: 1,
+		},
+		{
+			name:            "HandleDeleteMessage_Success",
+			handler:         "delete_msg",
+			method:          http.MethodDelete,
+			path:            "/v1/log_messages/5",
+			chiParams:       map[string]string{"id": "5"},
+			body:            "",
+			svc:             &logmessagesvcmock.IService{},
 			expectedCode:    http.StatusNoContent,
+			expectedCounter: 1,
+		},
+		{
+			name:            "HandleDeleteMessage_ServiceError_PropagatesError",
+			handler:         "delete_msg",
+			method:          http.MethodDelete,
+			path:            "/v1/log_messages/5",
+			chiParams:       map[string]string{"id": "5"},
+			body:            "",
+			svc:             &logmessagesvcmock.IService{DeleteMessageErr: errors.New("svc fail")},
+			expectedCode:    http.StatusInternalServerError,
 			expectedCounter: 1,
 		},
 	}
@@ -190,11 +212,13 @@ func TestLogMessageController_TableDriven(t *testing.T) {
 				sc.handleRetrieve(rr, req)
 			case "delete":
 				sc.handleDeleteLang(rr, req)
+			case "delete_msg":
+				sc.handleDeleteMessage(rr, req)
 			default:
 				t.Fatalf("unknown handler %s", tt.handler)
 			}
 
-			// check expected exact code when provided
+			// check the expected exact code when provided
 			if tt.expectedCode != 0 {
 				if rr.Code != tt.expectedCode {
 					t.Fatalf("esperado status %d, obtenido %d, body: %s", tt.expectedCode, rr.Code, rr.Body.String())

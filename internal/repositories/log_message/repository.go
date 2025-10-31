@@ -12,4 +12,5 @@ type IRepository interface {
 	Update(ctx context.Context, ID *int, lang string, model *Model) error
 	Retrieve(ctx context.Context, filter Filter) ([]Model, int, error)
 	DeleteLang(ctx context.Context, id *int, Lang string) error
+	DeleteMessage(ctx context.Context, ID *int) error
 }

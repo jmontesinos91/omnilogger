@@ -215,3 +215,36 @@ func (s *DefaultService) DeleteLang(ctx context.Context, id *int, lang string) e
 
 	return nil
 }
+
+// DeleteMessage service to delete a log message
+func (s *DefaultService) DeleteMessage(ctx context.Context, id *int) error {
+	requestID := ctx.Value(middleware.RequestIDKey).(string)
+
+	if id == nil {
+		s.log.WithContext(
+			logrus.ErrorLevel,
+			"DeleteMessage",
+			"Missing id param: %v",
+			logger.Context{
+				tracekey.TrackingID: requestID,
+				"ID":                id,
+			}, nil)
+		return terrors.New(terrors.ErrBadRequest, "", map[string]string{})
+	}
+
+	err := s.logMessagesRepo.DeleteMessage(ctx, id)
+	if err != nil {
+		s.log.WithContext(
+			logrus.ErrorLevel,
+			"DeleteMessage",
+			"Error deleting message: %v",
+			logger.Context{
+				tracekey.TrackingID: requestID,
+				"ID":                id,
+			}, err)
+
+		return terrors.New(terrors.ErrInternalService, "Internal error service", map[string]string{})
+	}
+
+	return nil
+}

@@ -48,6 +48,7 @@ func NewLogMessageController(server *HTTPServer, validator *validator.Validate, 
 		r.Post("/v1/log_messages", sc.handleCreate)
 		r.Post("/v1/log_messages/{id}", sc.handleUpdate)
 		r.Delete("/v1/log_messages/{id}/{lang}", sc.handleDeleteLang)
+		r.Delete("/v1/log_messages/{id}", sc.handleDeleteMessage)
 	})
 
 	return sc
@@ -144,6 +145,20 @@ func (sc *LogMessageController) handleDeleteLang(w http.ResponseWriter, r *http.
 	lang := chi.URLParam(r, "lang")
 
 	err := sc.logMessageSvc.DeleteLang(r.Context(), &id, lang)
+	if err != nil {
+		RenderError(r.Context(), w, err)
+		return
+	}
+
+	RenderJSON(r.Context(), w, http.StatusNoContent, nil)
+}
+
+func (sc *LogMessageController) handleDeleteMessage(w http.ResponseWriter, r *http.Request) {
+	sc.counterMetric.Inc()
+
+	id, _ := strconv.Atoi(chi.URLParam(r, "id"))
+
+	err := sc.logMessageSvc.DeleteMessage(r.Context(), &id)
 	if err != nil {
 		RenderError(r.Context(), w, err)
 		return
